@@ -139,6 +139,7 @@ namespace PSDLExporter
 
             // construct sidewalk meshes.
             Debug.Log("Construct sidewalks...");
+            // TODO: probably need to invert!
             for (int i = 0; i < adjacentSegmentsArray.Length; i++)
             {
                 // use quadratic bezier curve to connect the two points smoothly with the meeting point as support
@@ -186,10 +187,10 @@ namespace PSDLExporter
                 Debug.Log("Create vertices...");
                 List<Vertex> blockVertices = new List<Vertex>();
 
-                for (int j = 0; j < 5; j++)
+                for (int j = 4; j >= 0; j--)
                 {
-                    blockVertices.Add(new Vertex(outerSidewalkPoints[j].x, GetNetNode().m_position.y + SIDEWALK_HEIGHT, outerSidewalkPoints[j].y) * CONVERSION_SCALE);
                     blockVertices.Add(new Vertex(sidewalkRoadBorderPoints[j].x, GetNetNode().m_position.y, sidewalkRoadBorderPoints[j].y) * CONVERSION_SCALE);
+                    blockVertices.Add(new Vertex(outerSidewalkPoints[j].x, GetNetNode().m_position.y + SIDEWALK_HEIGHT, outerSidewalkPoints[j].y) * CONVERSION_SCALE);                  
                 }
 
                 /*for (int j = 4; j >= 0; j--)
@@ -217,21 +218,30 @@ namespace PSDLExporter
                 SidewalkStripElement side0 = (SidewalkStripElement)intersectionElements[i];
                 SidewalkStripElement side1 = (SidewalkStripElement)intersectionElements[(i + 1) % adjacentSegmentsArray.Length];
 
-                crosswalkVertices.Add(side0.GetVertex(7));
-                crosswalkVertices.Add(side0.GetVertex(9));
+                crosswalkVertices.Add(side0.GetVertex(2));
+                crosswalkVertices.Add(side0.GetVertex(0));
 
-                crosswalkVertices.Add(side1.GetVertex(3));
-                crosswalkVertices.Add(side1.GetVertex(1));
+                crosswalkVertices.Add(side1.GetVertex(6));
+                crosswalkVertices.Add(side1.GetVertex(8));
 
                 Debug.Log("Construct perimeters...");
                 List<PerimeterPoint> roadPerimeterPoints = new List<PerimeterPoint>();
 
-                roadPerimeterPoints.Add(new PerimeterPoint(side0.GetVertex(8), null));
-                roadPerimeterPoints.Add(new PerimeterPoint(side1.GetVertex(0), null));
+                roadPerimeterPoints.Add(new PerimeterPoint(side0.GetVertex(1), null));
+                roadPerimeterPoints.Add(new PerimeterPoint(side0.GetVertex(0), null));
+                roadPerimeterPoints.Add(new PerimeterPoint(side1.GetVertex(8), null));
+                roadPerimeterPoints.Add(new PerimeterPoint(side1.GetVertex(9), null));
+
 
                 //TODO: is that correct? I figure crosswalk i belongs to road i + 1
                 perimeterPoints.Add(adjacentSegmentsArray[(i + 1) % adjacentSegmentsArray.Length].Value, roadPerimeterPoints);
                 intersectionPerimeterPoints.AddRange(roadPerimeterPoints);
+
+                // points not touching connected road
+                intersectionPerimeterPoints.Add(new PerimeterPoint(side1.GetVertex(7), null));
+                intersectionPerimeterPoints.Add(new PerimeterPoint(side1.GetVertex(5), null));
+                intersectionPerimeterPoints.Add(new PerimeterPoint(side1.GetVertex(3), null));
+
                 Debug.Log("Make crosswalk element...");
                 CrosswalkElement crosswalk = new CrosswalkElement("rxwalk_f", crosswalkVertices);
                 intersectionElements.Add(crosswalk);
@@ -240,10 +250,10 @@ namespace PSDLExporter
                 List<Vertex> betweenVertices = new List<Vertex>();
 
 
-                betweenVertices.Add(side1.GetVertex(5));
-                betweenVertices.Add(side1.GetVertex(3));
-                betweenVertices.Add(side0.GetVertex(7));
-                betweenVertices.Add(side0.GetVertex(5));
+                betweenVertices.Add(side1.GetVertex(4));
+                betweenVertices.Add(side1.GetVertex(6));
+                betweenVertices.Add(side0.GetVertex(2));
+                betweenVertices.Add(side0.GetVertex(4));
 
                 CulledTriangleFanElement between = new CulledTriangleFanElement("rinter_f", betweenVertices);
                 intersectionElements.Add(between);
@@ -385,7 +395,7 @@ namespace PSDLExporter
 
         static private readonly float INTERSECTION_OFFSET = 5.0f;
         static readonly float SIDEWALK_OFFSET = 0.15f; // relative amount of total width
-        static readonly float SIDEWALK_HEIGHT = 0.15f; // absolute height
+        static readonly float SIDEWALK_HEIGHT = 0.1f; // absolute height
 
         static readonly float CONVERSION_SCALE = 2.0f;
         static private NetManager netMan = Singleton<NetManager>.instance;

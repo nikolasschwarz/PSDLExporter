@@ -17,7 +17,7 @@ namespace PSDLExporter
         NetManager netMan = Singleton<NetManager>.instance;
         readonly float offset = 5.0f;
         static readonly float SIDEWALK_OFFSET = 0.15f; // relative amount of total width
-        static readonly float SIDEWALK_HEIGHT = 0.15f; // absolute height
+        static readonly float SIDEWALK_HEIGHT = 0.1f; // absolute height
 
         static readonly float CONVERSION_SCALE = 2.0f;
 
@@ -128,6 +128,8 @@ namespace PSDLExporter
 
             Vector3 averageDir = new Vector3(0.0f, 0.0f, 0.0f);
 
+            float cornerFactor = 1.0f;
+
             if (segments.Count > 1)
             {
                 // make sure orientation is always the same
@@ -144,20 +146,24 @@ namespace PSDLExporter
                 Vector3 dir1 = netMan.m_segments.m_buffer[segments[1]].GetDirection(nodeIndex);
                 dir1.Normalize();
                 averageDir -= dir1;
+                averageDir.y = 0.0f;
+                averageDir.Normalize();
+
+                cornerFactor = 1.0f / Vector3.Dot(dir0, averageDir);
             }
             else
             {
                 Vector3 dir0 = netMan.m_segments.m_buffer[segments[0]].GetDirection(nodeIndex);
-                dir0.Normalize();
                 averageDir += dir0;
+                averageDir.y = 0.0f;
+                averageDir.Normalize();
             }
 
             Vector3 normalInPlane = new Vector3(-averageDir.z, 0.0f, averageDir.x);
-            normalInPlane.Normalize();
 
             Vector3[] points = new Vector3[2];
-            points[0] = netMan.m_nodes.m_buffer[nodeIndex].m_position + offset * normalInPlane;
-            points[1] = netMan.m_nodes.m_buffer[nodeIndex].m_position - offset * normalInPlane;
+            points[0] = netMan.m_nodes.m_buffer[nodeIndex].m_position + offset * cornerFactor * normalInPlane;
+            points[1] = netMan.m_nodes.m_buffer[nodeIndex].m_position - offset * cornerFactor * normalInPlane;
 
             return points;
         }
@@ -311,7 +317,7 @@ namespace PSDLExporter
             return segments[0];
         }
 
-        public Room BuildRoadBlock(ushort intersectionIndex, ushort firstSegIndex,
+        public Room[] BuildRoadBlock(ushort intersectionIndex, ushort firstSegIndex,
             SortedDictionary<ushort, CSIntersection> intersections, SortedDictionary<uint, uint> alreadyBuilt)
         {
             if (alreadyBuilt.ContainsKey(firstSegIndex)) return null;
@@ -365,6 +371,85 @@ namespace PSDLExporter
                 alreadyBuilt.Add(currentSegment, currentSegment);
             }
 
+            Room[] segmentRooms = new Room[1];
+
+            /*for (int i = 1; i < vertexList.Count; i++)
+            {
+                Vertex[] vertices = new Vertex[8];
+
+                vertices[0] = new Vertex(vertexList[i-1][1].z, vertexList[i-1][1].y, vertexList[i - 1][1].x) * CONVERSION_SCALE;
+                vertices[3] = new Vertex(vertexList[i-1][0].z, vertexList[i-1][0].y, vertexList[i - 1][0].x) * CONVERSION_SCALE;
+
+                vertices[1] = vertices[0] * (1.0f - SIDEWALK_OFFSET) + vertices[3] * SIDEWALK_OFFSET;
+                vertices[2] = vertices[0] * SIDEWALK_OFFSET + vertices[3] * (1.0f - SIDEWALK_OFFSET);
+
+                vertices[0].y += SIDEWALK_HEIGHT;
+                vertices[3].y += SIDEWALK_HEIGHT;
+
+
+                vertices[4] = new Vertex(vertexList[i][1].z, vertexList[i][1].y, vertexList[i][1].x) * CONVERSION_SCALE;
+                vertices[7] = new Vertex(vertexList[i][0].z, vertexList[i][0].y, vertexList[i][0].x) * CONVERSION_SCALE;
+
+                vertices[5] = vertices[4] * (1.0f - SIDEWALK_OFFSET) + vertices[7] * SIDEWALK_OFFSET;
+                vertices[6] = vertices[4] * SIDEWALK_OFFSET + vertices[7] * (1.0f - SIDEWALK_OFFSET);
+
+                vertices[4].y += SIDEWALK_HEIGHT;
+                vertices[7].y += SIDEWALK_HEIGHT;
+
+                Room prevRoom;
+
+                if (i == 1)
+                {
+                    prevRoom = intersections[intersectionIndex].Room;
+                }
+                else
+                {
+                    prevRoom = segmentRooms[i - 2];
+
+                }
+
+                List<PerimeterPoint> perimeterPoints = new List<PerimeterPoint>();
+                perimeterPoints.Add(new PerimeterPoint(vertices[0], prevRoom));
+                perimeterPoints.Add(new PerimeterPoint(vertices[1], prevRoom));
+                perimeterPoints.Add(new PerimeterPoint(vertices[2], prevRoom));
+                perimeterPoints.Add(new PerimeterPoint(vertices[3], prevRoom));
+                perimeterPoints.Add(new PerimeterPoint(vertices[7], null));
+                perimeterPoints.Add(new PerimeterPoint(vertices[6], null));
+                perimeterPoints.Add(new PerimeterPoint(vertices[5], null));
+                perimeterPoints.Add(new PerimeterPoint(vertices[4], null));
+
+                RoadElement[] roadArray = new RoadElement[1];
+                roadArray[0] = new RoadElement("r2_f", "swalk_f", "r2_lo_f", vertices);
+                Room room = new Room(roadArray, perimeterPoints, 0, RoomFlags.Road);
+
+                if(i != 1)
+                {
+                    //set references here correctly
+                    prevRoom.Perimeter[4].ConnectedRoom = room;
+                    prevRoom.Perimeter[5].ConnectedRoom = room;
+                    prevRoom.Perimeter[6].ConnectedRoom = room;
+                    prevRoom.Perimeter[7].ConnectedRoom = room;
+                }
+
+                segmentRooms[i - 1] = room;
+            }
+
+            // setup intersection perimeters
+            List<PerimeterPoint> startPerimeters = intersections[intersectionIndex].PerimeterPoints[firstSegIndex];
+            List<PerimeterPoint> endPerimeters = intersections[currentNode].PerimeterPoints[currentSegment];
+
+            foreach (PerimeterPoint pp in startPerimeters)
+            {
+                pp.ConnectedRoom = segmentRooms[0];
+            }
+
+            foreach (PerimeterPoint pp in endPerimeters)
+            {
+                pp.ConnectedRoom = segmentRooms[segmentRooms.Length - 1];
+            }
+
+            return segmentRooms;*/
+
             // now build block
             Debug.Log("Creating block vertices");
             Vertex[] blockVertices = new Vertex[vertexList.Count * 4];
@@ -375,17 +460,16 @@ namespace PSDLExporter
             {
                 // TODO: might need to adjust orientation. For the old OBJ -> Blender -> 3ds -> MM2CT way x and z had to be swapped.
                 Debug.Log("Filling vertex buffer..");
-                blockVertices[4 * i] = new Vertex(vertexList[i][1].z, vertexList[i][1].y, vertexList[i][1].x) * CONVERSION_SCALE;
 
-                blockVertices[4 * i + 3] = new Vertex(vertexList[i][0].z, vertexList[i][0].y,  vertexList[i][0].x) * CONVERSION_SCALE;
-                blockVertices[4 * i] = new Vertex(vertexList[i][0].z, vertexList[i][0].y,  vertexList[i][0].x) * CONVERSION_SCALE;
+                blockVertices[4 * i] = new Vertex(vertexList[i][1].z, vertexList[i][1].y, vertexList[i][1].x) * CONVERSION_SCALE;
+                blockVertices[4 * i + 3] = new Vertex(vertexList[i][0].z, vertexList[i][0].y, vertexList[i][0].x) * CONVERSION_SCALE;
 
                 blockVertices[4 * i + 1] = blockVertices[4 * i] * (1.0f - SIDEWALK_OFFSET) + blockVertices[4 * i + 3] * SIDEWALK_OFFSET;
                 blockVertices[4 * i + 2] = blockVertices[4 * i] * SIDEWALK_OFFSET + blockVertices[4 * i + 3] * (1.0f - SIDEWALK_OFFSET);
-                
 
-                blockVertices[4 * i].y += SIDEWALK_HEIGHT;
-                blockVertices[4 * i + 3].y += SIDEWALK_HEIGHT;
+
+                blockVertices[4 * i].y += SIDEWALK_HEIGHT * CONVERSION_SCALE;
+                blockVertices[4 * i + 3].y += SIDEWALK_HEIGHT * CONVERSION_SCALE;
 
                 Debug.Log("Setting up perimeter points...");
 
@@ -395,20 +479,32 @@ namespace PSDLExporter
                 if (i == 0)
                 {
                     neighbor = intersections[intersectionIndex].Room;
+                    PerimeterPoint innerLeftPoint = new PerimeterPoint(blockVertices[4 * i + 1], neighbor);
+                    PerimeterPoint innerRightPoint = new PerimeterPoint(blockVertices[4 * i + 2], neighbor);
+                    perimeterPoints.Add(innerRightPoint);
+                    perimeterPoints.Insert(0, innerLeftPoint);
                 }
-                else if(i == vertexList.Count - 1)
+                else if (i == vertexList.Count - 1 && GetAllAdjacentSegments(netMan.m_nodes.m_buffer[currentNode], NetInfo.LaneType.Vehicle).Count >= 2)
                 {
+                    // last segment and no dead end
                     neighbor = intersections[currentNode].Room;
                 }
 
- 
-                PerimeterPoint leftPoint = new PerimeterPoint(blockVertices[4 * i], neighbor); // TODO: add intersection or ground or whatever.
-                PerimeterPoint rightPoint = new PerimeterPoint(blockVertices[4 * i + 3], neighbor); // TODO: add intersection or ground or whatever.
+
+                PerimeterPoint leftPoint = new PerimeterPoint(blockVertices[4 * i], neighbor);
+                PerimeterPoint rightPoint = new PerimeterPoint(blockVertices[4 * i + 3], neighbor);
 
                 // Insert left points in opposite order
                 perimeterPoints.Add(rightPoint);
                 perimeterPoints.Insert(0, leftPoint);
 
+                if (i == vertexList.Count - 1)
+                {
+                    PerimeterPoint innerLeftPoint = new PerimeterPoint(blockVertices[4 * i + 1], neighbor);
+                    PerimeterPoint innerRightPoint = new PerimeterPoint(blockVertices[4 * i + 2], neighbor);
+                    perimeterPoints.Add(innerRightPoint);
+                    perimeterPoints.Insert(0, innerLeftPoint);
+                }
 
             }
 
@@ -421,19 +517,24 @@ namespace PSDLExporter
 
             // setup intersection perimeters
             List<PerimeterPoint> startPerimeters = intersections[intersectionIndex].PerimeterPoints[firstSegIndex];
-            List<PerimeterPoint> endPerimeters = intersections[currentNode].PerimeterPoints[currentSegment];
+            
 
             foreach (PerimeterPoint pp in startPerimeters)
             {
                 pp.ConnectedRoom = room;
             }
 
-            foreach (PerimeterPoint pp in endPerimeters)
+            if (GetAllAdjacentSegments(netMan.m_nodes.m_buffer[currentNode], NetInfo.LaneType.Vehicle).Count >= 2)
             {
-                pp.ConnectedRoom = room;
+                List<PerimeterPoint> endPerimeters = intersections[currentNode].PerimeterPoints[currentSegment];
+                foreach (PerimeterPoint pp in endPerimeters)
+                {
+                    pp.ConnectedRoom = room;
+                }
             }
 
-            return room;
+            segmentRooms[0] = room;
+            return segmentRooms;
         }
 
         public PolygonMesh BuildRoad(ushort intersectionIndex, ushort firstSegIndex,
@@ -980,6 +1081,25 @@ namespace PSDLExporter
             }
 
             return supportB + paramB * directionB;
+        }
+
+        // for debugging
+        static public string DrawPerimeter(List<PerimeterPoint> pps)
+        {
+            string result = "<circle cx=\"" + pps[0].Vertex.x + "\" cy=\"" + pps[0].Vertex.z + "\" r=\"4\"/>" + Environment.NewLine;
+
+            // show second vertex to indicate direction
+            result += "<circle cx=\"" + pps[1].Vertex.x + "\" cy=\"" + pps[1].Vertex.z + "\" r=\"4\" fill=\"red\" />" + Environment.NewLine;
+
+            result += "<polygon points=\"";
+            foreach (PerimeterPoint pp in pps)
+            {
+                result += pp.Vertex.x + "," + pp.Vertex.z + " ";
+            }
+            result.Remove(result.Length - 1); // remove last space
+
+            result += "\" style=\"fill:lightgrey;stroke:red;stroke-width:1\" />" + Environment.NewLine;
+            return result;
         }
     }
 }

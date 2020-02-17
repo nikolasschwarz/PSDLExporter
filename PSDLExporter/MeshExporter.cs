@@ -3,6 +3,7 @@ using ColossalFramework.UI;
 using PSDL;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using UnityEngine;
@@ -326,9 +327,8 @@ namespace PSDLExporter
 
             foreach (CSIntersection intersection in intersections.Values)
             {
-                //rooms.Add(intersection.Room);
+                rooms.Add(intersection.Room);
             }
-            //rooms.Clear();
 
             SortedDictionary<uint, uint> alreadyBuilt = new SortedDictionary<uint, uint>();
 
@@ -343,21 +343,57 @@ namespace PSDLExporter
                 foreach (ushort segIndex in intersec.AdjacentSegments.Values)
                 {
                     Debug.Log("Building road with start segment " + segIndex);
-                    Room road = meshBuilder.BuildRoadBlock(intersec.NodeID, segIndex, intersections, alreadyBuilt);
-                    if (road != null) rooms.Add(road);                
+                    Room[] road = meshBuilder.BuildRoadBlock(intersec.NodeID, segIndex, intersections, alreadyBuilt);
+                    if (road != null) rooms.AddRange(road);                
                 }
             }
 
             PSDLFile file = new PSDLFile();
 
             file.Rooms = rooms;
-            file.RecalculateBounds();
             file.Version = 0;
 
-            file.SaveAs(@"D:\Games\SteamLibrary\steamapps\common\Cities_Skylines\test.psdl");
+            string psdlLocation = @"D:\Games\SteamLibrary\steamapps\common\Cities_Skylines\test.psdl";
+            if(File.Exists(psdlLocation)) File.Delete(psdlLocation);
+            file.SaveAs(psdlLocation);
 
-            //PolygonMesh roadMeshCombined = PolygonMesh.Merge(roadMeshes);
-            //roadMeshCombined.ExportToObj(@"D:\Games\SteamLibrary\steamapps\common\Cities_Skylines\test.psdl", 2.0f);
+            // debug
+            Debug.Log("There are " + file.Vertices.Count + " vertices and " + file.Rooms.Count + " rooms.");
+
+            StreamWriter writer = new StreamWriter(@"D:\Games\SteamLibrary\steamapps\common\Cities_Skylines\perimeters.svg");
+            writer.WriteLine("<svg height=\"210\" width=\"500\">");
+
+            foreach (Room r in rooms)
+            {
+                writer.WriteLine(MeshBuilder.DrawPerimeter(r.Perimeter));
+                Debug.Log("Perimeter has " + r.Perimeter.Count + " vertices.");
+            }
+
+            writer.WriteLine("</ svg >");
+            writer.Flush();
+            writer.Close();
+
+            // look at pre-existing psdl
+
+            PSDLFile mm2ctGenfile = new PSDLFile(@"D:\Games\SteamLibrary\steamapps\common\Cities_Skylines\test.psdl");
+            string reexportLocation = @"D:\Games\SteamLibrary\steamapps\common\Cities_Skylines\testReexport.psdl";
+
+            if (File.Exists(reexportLocation)) File.Delete(reexportLocation);
+            mm2ctGenfile.SaveAs(reexportLocation);
+
+            //PSDLFile testReimport = new PSDLFile(@"D:\Games\SteamLibrary\steamapps\common\Cities_Skylines\testReexport.psdl");
+
+            /*StreamWriter writer2 = new StreamWriter(@"D:\Games\SteamLibrary\steamapps\common\Cities_Skylines\perimetersMM2CTgen.svg");
+            writer2.WriteLine("<svg height=\"210\" width=\"500\">");
+
+            foreach (Room r in mm2ctGenfile.Rooms)
+            {
+                writer2.WriteLine(MeshBuilder.DrawPerimeter(r.Perimeter));
+            }
+
+            writer2.WriteLine("</ svg >");
+            writer2.Flush();
+            writer2.Close();*/
 
             ExceptionPanel panel2 = UIView.library.ShowModal<ExceptionPanel>("ExceptionPanel");
             panel2.SetMessage("PSDLExporter", "Wrote to file. There are " + brokenSegments + " broken segments, " + deadEnds.Count
