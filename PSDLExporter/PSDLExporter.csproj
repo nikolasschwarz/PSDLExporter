@@ -51,14 +51,18 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="CSGround.cs" />
     <Compile Include="CSIntersection.cs" />
+    <Compile Include="CSRoad.cs" />
     <Compile Include="MeshBuilder.cs" />
     <Compile Include="MeshExporter.cs" />
     <Compile Include="PolygonMesh.cs" />
     <Compile Include="PSDLExporterLoading.cs" />
     <Compile Include="PSDLExporterMod.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="RoadUtils.cs" />
     <Compile Include="UIUtils.cs" />
+    <Compile Include="UniversalProperties.cs" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="PSDLExporterIcon.png" />

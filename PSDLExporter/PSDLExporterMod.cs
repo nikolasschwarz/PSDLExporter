@@ -12,7 +12,7 @@ namespace PSDLExporter
 
         public string Description
         {
-            get { return "Exports roads as 3ds suitable for MM2CT new"; }
+            get { return "Exports City as a PSDL File suitable for Midtown Madness 2"; }
         }
     }
 

@@ -14,6 +14,18 @@ namespace PSDLExporter
     /// </summary>
     class CSIntersection
     {
+
+        private SortedDictionary<ushort, Vector2[]> connectionPoints; // map segment to connection points
+        private SortedDictionary<ushort, List<PerimeterPoint>> perimeterPoints; // map segment to its perimeter points
+        private SortedDictionary<float, ushort> adjacentSegments; // map angle to segment (allows to find neighboring roads)
+        private Vector2[] meetingPoints;
+
+        private Room room;
+        private ushort nodeID;
+        private ushort intersectionNo;
+
+        static private NetManager netMan = Singleton<NetManager>.instance;
+
         public CSIntersection(ushort nodeID, ushort intersectionNo)
         {
             this.nodeID = nodeID;
@@ -106,8 +118,8 @@ namespace PSDLExporter
                 dirB2d.Normalize();
                 Vector2 normB = new Vector2(dirB2d.y, -dirB2d.x);
 
-                Vector2 supportA = new Vector2(GetNetNode().m_position.z, GetNetNode().m_position.x) - (INTERSECTION_OFFSET * normA); // make intersections smooth
-                Vector2 supportB = new Vector2(GetNetNode().m_position.z, GetNetNode().m_position.x) + (INTERSECTION_OFFSET * normB);
+                Vector2 supportA = new Vector2(GetNetNode().m_position.z, GetNetNode().m_position.x) - (UniversalProperties.HALFROAD_WIDTH * normA);
+                Vector2 supportB = new Vector2(GetNetNode().m_position.z, GetNetNode().m_position.x) + (UniversalProperties.HALFROAD_WIDTH * normB);
 
                 roadBounds[2 * i] = supportA;
                 roadBounds[2 * i + 1] = supportB;
@@ -123,8 +135,9 @@ namespace PSDLExporter
                     Debug.Assert(meetingPoints[i] == IntersectLines(supportB, dirB2d, supportA, dirA2d));
                 }
 
-                connectionPoints[adjacentSegmentsArray[i].Value][1] = meetingPoints[i] + 4.0f * dirA2d;
-                connectionPoints[adjacentSegmentsArray[(i + 1) % adjacentSegmentsArray.Length].Value][0] = meetingPoints[i] + 4.0f * dirB2d;
+                // make intersections smooth
+                connectionPoints[adjacentSegmentsArray[i].Value][1] = meetingPoints[i] + UniversalProperties.INTERSECTION_OFFSET * dirA2d;
+                connectionPoints[adjacentSegmentsArray[(i + 1) % adjacentSegmentsArray.Length].Value][0] = meetingPoints[i] + UniversalProperties.INTERSECTION_OFFSET * dirB2d;
 
             }
         }
@@ -167,13 +180,13 @@ namespace PSDLExporter
                 Vector2[] sidewalkRoadBorderPoints = new Vector2[5];
 
                 Vector2 crossingDir0 = connectionPoints[adjacentSegmentsArray[i].Value][0] - connectionPoints[adjacentSegmentsArray[i].Value][1];
-                sidewalkRoadBorderPoints[0] = connectionPoints[adjacentSegmentsArray[i].Value][1] + SIDEWALK_OFFSET * crossingDir0;
+                sidewalkRoadBorderPoints[0] = connectionPoints[adjacentSegmentsArray[i].Value][1] + UniversalProperties.SIDEWALK_OFFSET * crossingDir0;
 
                 Vector2 crossingDir1 = connectionPoints[adjacentSegmentsArray[(i + 1) % adjacentSegmentsArray.Length].Value][1]
                     - connectionPoints[adjacentSegmentsArray[(i + 1) % adjacentSegmentsArray.Length].Value][0];
-                sidewalkRoadBorderPoints[4] = connectionPoints[adjacentSegmentsArray[(i + 1) % adjacentSegmentsArray.Length].Value][0] + SIDEWALK_OFFSET * crossingDir1;
+                sidewalkRoadBorderPoints[4] = connectionPoints[adjacentSegmentsArray[(i + 1) % adjacentSegmentsArray.Length].Value][0] + UniversalProperties.SIDEWALK_OFFSET * crossingDir1;
 
-                Vector2 supportPoint = meetingPoints[i] + SIDEWALK_OFFSET * crossingDir0 + SIDEWALK_OFFSET * crossingDir1;
+                Vector2 supportPoint = meetingPoints[i] + UniversalProperties.SIDEWALK_OFFSET * crossingDir0 + UniversalProperties.SIDEWALK_OFFSET * crossingDir1;
 
                 // TODO: calculate this differently.
                 sidewalkRoadBorderPoints[1] = QuadraticBezier(sidewalkRoadBorderPoints[0], supportPoint, sidewalkRoadBorderPoints[4], 0.25f);
@@ -181,7 +194,7 @@ namespace PSDLExporter
                 sidewalkRoadBorderPoints[3] = QuadraticBezier(sidewalkRoadBorderPoints[0], supportPoint, sidewalkRoadBorderPoints[4], 0.75f);
 
                 Debug.Log("Add point to center...");
-                innerIntersection.Add(new Vertex(sidewalkRoadBorderPoints[2].x, GetNetNode().m_position.y, sidewalkRoadBorderPoints[2].y) * CONVERSION_SCALE);
+                innerIntersection.Add(new Vertex(sidewalkRoadBorderPoints[2].x, GetNetNode().m_position.y, sidewalkRoadBorderPoints[2].y) * UniversalProperties.CONVERSION_SCALE);
 
 
                 Debug.Log("Create vertices...");
@@ -189,8 +202,8 @@ namespace PSDLExporter
 
                 for (int j = 4; j >= 0; j--)
                 {
-                    blockVertices.Add(new Vertex(sidewalkRoadBorderPoints[j].x, GetNetNode().m_position.y, sidewalkRoadBorderPoints[j].y) * CONVERSION_SCALE);
-                    blockVertices.Add(new Vertex(outerSidewalkPoints[j].x, GetNetNode().m_position.y + SIDEWALK_HEIGHT, outerSidewalkPoints[j].y) * CONVERSION_SCALE);                  
+                    blockVertices.Add(new Vertex(sidewalkRoadBorderPoints[j].x, GetNetNode().m_position.y, sidewalkRoadBorderPoints[j].y) * UniversalProperties.CONVERSION_SCALE);
+                    blockVertices.Add(new Vertex(outerSidewalkPoints[j].x * UniversalProperties.CONVERSION_SCALE, GetNetNode().m_position.y * UniversalProperties.CONVERSION_SCALE + UniversalProperties.SIDEWALK_HEIGHT, outerSidewalkPoints[j].y * UniversalProperties.CONVERSION_SCALE));                  
                 }
 
                 /*for (int j = 4; j >= 0; j--)
@@ -204,7 +217,6 @@ namespace PSDLExporter
 
                 intersectionElements.Add(sidewalk);
             }
-
 
 
             // construct crosswalk meshes
@@ -384,21 +396,14 @@ namespace PSDLExporter
             return (1 - param) * (1 - param) * p0 + 2 * (1 - param) * param * p1 + param * param * p2;
         }
 
-
-        private SortedDictionary<ushort, Vector2[]> connectionPoints;
-        private SortedDictionary<ushort, List<PerimeterPoint>> perimeterPoints;
-        private SortedDictionary<float, ushort> adjacentSegments;
-        private Vector2[] meetingPoints;
-        private Room room;
-        private ushort nodeID;
-        private ushort intersectionNo;
-
-        static private readonly float INTERSECTION_OFFSET = 5.0f;
-        static readonly float SIDEWALK_OFFSET = 0.15f; // relative amount of total width
-        static readonly float SIDEWALK_HEIGHT = 0.1f; // absolute height
-
-        static readonly float CONVERSION_SCALE = 2.0f;
-        static private NetManager netMan = Singleton<NetManager>.instance;
+        // should be counter-clockwise but needs to be checked to be safe
+        public ushort GetAdjacentRoadByOffset(ushort segment, int offset)
+        {
+            ushort[] segments = adjacentSegments.Values.ToArray();
+            int index = Array.IndexOf(segments, segment);
+            // TODO: allow infinite wraparound
+            return segments[(index + offset + segments.Length) % segments.Length];
+        }
         
     }
 }
