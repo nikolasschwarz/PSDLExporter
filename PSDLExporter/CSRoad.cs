@@ -14,12 +14,18 @@ namespace PSDLExporter
         private List<ushort> segmentIDs = new List<ushort>();
         private List<ushort> nodeIDs = new List<ushort>();
         private Room room; //TODO: use list to allow multiple rooms per road
-        CSIntersection cSstartIntersection;
-        CSIntersection cSendIntersection = null;
+        private CSIntersection cSstartIntersection;
+        private CSIntersection cSendIntersection = null;
+        private List<PerimeterPoint> leftPerimeter;
+        private List<PerimeterPoint> rightPerimeter;
 
         private static NetManager netMan = Singleton<NetManager>.instance;
 
         public Room Room { get => room; }
+        public List<ushort> SegmentIDs { get => segmentIDs; }
+        public List<ushort> NodeIDs { get => nodeIDs; }
+        internal CSIntersection CSstartIntersection { get => cSstartIntersection; set => cSstartIntersection = value; }
+        internal CSIntersection CSendIntersection { get => cSendIntersection; set => cSendIntersection = value; }
 
         public CSRoad(ushort startIntersectionID, ushort startSegmentID, SortedDictionary<ushort, CSIntersection> intersections)
         {
@@ -174,26 +180,26 @@ namespace PSDLExporter
             this.room = room;
         }
 
-        public List<Vertex> TraverseBoundary(ushort startIntersection, bool leftside = true, bool turnAroundOnBridgeOrTunnel = true)
+        public List<Vertex> TraverseBoundary(ushort startSegment, bool leftside = true, bool turnAroundOnBridgeOrTunnel = true)
         {
             List<Vertex> leftBoundaryVertices = new List<Vertex>();
             int index;
             int step;
             RoadElement road = (RoadElement)room.FindElementOfType<RoadElement>();
 
-            if (startIntersection == nodeIDs[0])
+            if (startSegment == segmentIDs[0])
             {
                 index = leftside ? 0 : 3;
                 step = 4; // TODO: needs to be adapted for divided roads
             }
-            else if(startIntersection == nodeIDs.Last())
+            else if(startSegment == segmentIDs.Last())
             {
                 index = leftside ? road.GetVertexCount() - 1 : road.GetVertexCount() - 4;
                 step = -4; // TODO: needs to be adapted for divided roads
             }
             else
             {
-                throw new Exception("startIntersection is not located at either end of the road!");
+                throw new Exception("startSegment is not located at either end of the road!");
             }
 
             while(index < road.GetVertexCount() && index >= 0)

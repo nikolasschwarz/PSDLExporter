@@ -16,7 +16,8 @@ namespace PSDLExporter
     {
 
         private SortedDictionary<ushort, Vector2[]> connectionPoints; // map segment to connection points
-        private SortedDictionary<ushort, List<PerimeterPoint>> perimeterPoints; // map segment to its perimeter points
+        private SortedDictionary<ushort, List<PerimeterPoint>> roadPerimeterPoints; // map segment to its perimeter points
+        private Dictionary<KeyValuePair<ushort, ushort>, List<PerimeterPoint>> terrainPerimeterPoints; // map segment to its perimeter points
         private SortedDictionary<float, ushort> adjacentSegments; // map angle to segment (allows to find neighboring roads)
         private Vector2[] meetingPoints;
 
@@ -148,7 +149,8 @@ namespace PSDLExporter
             List<ISDLElement> intersectionElements = new List<ISDLElement>();
             List<Vertex> innerIntersection = new List<Vertex>();
             List<PerimeterPoint> intersectionPerimeterPoints = new List<PerimeterPoint>();
-            perimeterPoints = new SortedDictionary<ushort, List<PerimeterPoint>>();
+            roadPerimeterPoints = new SortedDictionary<ushort, List<PerimeterPoint>>();
+            terrainPerimeterPoints = new Dictionary<KeyValuePair<ushort, ushort>, List<PerimeterPoint>>();
 
             // construct sidewalk meshes.
             Debug.Log("Construct sidewalks...");
@@ -237,7 +239,10 @@ namespace PSDLExporter
                 crosswalkVertices.Add(side1.GetVertex(8));
 
                 Debug.Log("Construct perimeters...");
+
+                // TODO: I have some suspicion that the perimeter might be clockwise instead of counter-clockwise
                 List<PerimeterPoint> roadPerimeterPoints = new List<PerimeterPoint>();
+                List<PerimeterPoint> localTerrainPerimeterPoints = new List<PerimeterPoint>();
 
                 roadPerimeterPoints.Add(new PerimeterPoint(side0.GetVertex(1), null));
                 roadPerimeterPoints.Add(new PerimeterPoint(side0.GetVertex(0), null));
@@ -246,13 +251,20 @@ namespace PSDLExporter
 
 
                 //TODO: is that correct? I figure crosswalk i belongs to road i + 1
-                perimeterPoints.Add(adjacentSegmentsArray[(i + 1) % adjacentSegmentsArray.Length].Value, roadPerimeterPoints);
+                this.roadPerimeterPoints.Add(adjacentSegmentsArray[(i + 1) % adjacentSegmentsArray.Length].Value, roadPerimeterPoints);
                 intersectionPerimeterPoints.AddRange(roadPerimeterPoints);
 
                 // points not touching connected road
-                intersectionPerimeterPoints.Add(new PerimeterPoint(side1.GetVertex(7), null));
-                intersectionPerimeterPoints.Add(new PerimeterPoint(side1.GetVertex(5), null));
-                intersectionPerimeterPoints.Add(new PerimeterPoint(side1.GetVertex(3), null));
+                localTerrainPerimeterPoints.Add(new PerimeterPoint(side1.GetVertex(9), null));
+                localTerrainPerimeterPoints.Add(new PerimeterPoint(side1.GetVertex(7), null));
+                localTerrainPerimeterPoints.Add(new PerimeterPoint(side1.GetVertex(5), null));
+                localTerrainPerimeterPoints.Add(new PerimeterPoint(side1.GetVertex(3), null));
+                localTerrainPerimeterPoints.Add(new PerimeterPoint(side1.GetVertex(1), null));
+
+                terrainPerimeterPoints.Add(new KeyValuePair<ushort, ushort>(adjacentSegmentsArray[(i + 1) % adjacentSegmentsArray.Length].Value,
+                        adjacentSegmentsArray[(i + 2) % adjacentSegmentsArray.Length].Value), localTerrainPerimeterPoints);
+
+                intersectionPerimeterPoints.AddRange(localTerrainPerimeterPoints);
 
                 Debug.Log("Make crosswalk element...");
                 CrosswalkElement crosswalk = new CrosswalkElement("rxwalk_f", crosswalkVertices);
@@ -292,7 +304,8 @@ namespace PSDLExporter
         public ushort NodeID { get => nodeID; }
         public SortedDictionary<float, ushort> AdjacentSegments { get => adjacentSegments; }
         public SortedDictionary<ushort, Vector2[]> ConnectionPoints { get => connectionPoints; }
-        public SortedDictionary<ushort, List<PerimeterPoint>> PerimeterPoints { get => perimeterPoints; }
+        public SortedDictionary<ushort, List<PerimeterPoint>> PerimeterPoints { get => roadPerimeterPoints; }
+        public Dictionary<KeyValuePair<ushort, ushort>, List<PerimeterPoint>> TerrainPerimeterPoints { get => terrainPerimeterPoints; }
 
         // helper methods, maybe put somewhere else
         private void AddSegment(ushort segIndex)

@@ -17,7 +17,7 @@ namespace PSDLExporter
 
         public void RetrieveData()
         {
-            NetManager nm = Singleton<NetManager>.instance;            
+            NetManager nm = Singleton<NetManager>.instance;
 
             // find and mark intersections
 
@@ -31,20 +31,67 @@ namespace PSDLExporter
                 rooms.Add(intersection.Room);
             }
 
-            SortedDictionary<uint, uint> alreadyBuilt = new SortedDictionary<uint, uint>();
+            SortedDictionary<ushort, CSRoad> roads = new SortedDictionary<ushort, CSRoad>();
 
             foreach (CSIntersection intersec in intersections.Values)
             {
                 foreach (ushort segIndex in intersec.AdjacentSegments.Values)
                 {
-                    if (!alreadyBuilt.ContainsKey(segIndex))
+                    // make sure road has not been built already starting from the other side.
+                    if (!roads.ContainsKey(segIndex))
                     {
-                        CSRoad road = new CSRoad(intersec.NodeID, segIndex, intersections);                 
+                        CSRoad road = new CSRoad(intersec.NodeID, segIndex, intersections);
                         road.BuildRoadBlock();
+
+                        // roads are identified by either start or end segment
+                        roads.Add(segIndex, road);
+                        roads.Add(road.SegmentIDs.Last(), road);
 
                         rooms.Add(road.Room);
                     }
                 }
+            }
+
+            // a ground tile can be identified by a pair of segments adjacent to an intersection that border the ground tile.
+            Dictionary<KeyValuePair<ushort, ushort>, CSGround> groundTiles = new Dictionary<KeyValuePair<ushort, ushort>, CSGround>();
+
+            // TODO: allow duplicate keys!
+            SortedList<float, CSGround> groundTilesSortedByBoundingBoxArea = new SortedList<float, CSGround>();
+
+            foreach (CSIntersection intersec in intersections.Values)
+            {
+                ushort[] adjacentSegments = intersec.AdjacentSegments.Values.ToArray();
+
+
+                for(int i = 0; i < adjacentSegments.Length; i++)
+                {
+                    KeyValuePair<ushort, ushort> identifier = new KeyValuePair<ushort, ushort>(adjacentSegments[i], adjacentSegments[(i + 1) % adjacentSegments.Length]);
+
+                    if (groundTiles.ContainsKey(identifier)) continue;
+
+                    // now setup ground tile
+                    CSGround ground = new CSGround(identifier);
+
+                    ground.FindAdjacentRoadsAndIntersections(roads);
+                    ground.ConstructRoom();
+
+                    foreach(KeyValuePair<ushort, ushort> id in ground.IdentificationSegments.ToArray())
+                    {
+                        groundTiles.Add(id, ground);
+                    }
+
+                    groundTilesSortedByBoundingBoxArea.Add(ground.CalculateBoundingBoxArea(), ground);
+
+
+                }
+            }
+
+            // ground tile with the largest bounding box is the outer one that encapsulates all roads. For now, we will ignore it.
+            groundTilesSortedByBoundingBoxArea.Remove(groundTilesSortedByBoundingBoxArea.ToArray().Last().Key);
+
+            foreach(CSGround groundTile in groundTilesSortedByBoundingBoxArea.Values)
+            {
+                rooms.Add(groundTile.Room);
             }
 
             PSDLFile file = new PSDLFile();
