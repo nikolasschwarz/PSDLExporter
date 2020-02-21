@@ -116,5 +116,16 @@ namespace PSDLExporter
 
             return segmentIDs;
         }
+
+        public static float QueryHeight(float x, float z)
+        {
+            TerrainManager terMan = Singleton<TerrainManager>.instance;
+
+            // TODO: maybe adapt to polygon sizes and dynamically decide whether we should use min, max or avg depending on the environment
+            terMan.CalculateAreaHeight(z - 0.1f, x - 0.1f, z + 0.1f, x + 0.1f, out int min, out int avg, out int max);
+
+            Debug.Log("heights are: " + min + ", " + avg + ", " + max);
+            return avg / 64.0f; // scale was figured out empirically. Needs more testing!
+        }
     }
 }

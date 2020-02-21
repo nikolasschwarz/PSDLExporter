@@ -45,7 +45,8 @@ namespace PSDLExporter
 
                         // roads are identified by either start or end segment
                         roads.Add(segIndex, road);
-                        roads.Add(road.SegmentIDs.Last(), road);
+                        // need to check this in case road consists of a single segment
+                        if(segIndex != road.SegmentIDs.Last()) roads.Add(road.SegmentIDs.Last(), road);
 
                         rooms.Add(road.Room);
                     }
@@ -70,7 +71,7 @@ namespace PSDLExporter
                     if (groundTiles.ContainsKey(identifier)) continue;
 
                     // now setup ground tile
-                    CSGround ground = new CSGround(identifier);
+                    CSGround ground = new CSGround(identifier, intersec);
 
                     ground.FindAdjacentRoadsAndIntersections(roads);
                     ground.ConstructRoom();
