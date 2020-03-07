@@ -154,7 +154,7 @@ namespace PSDLExporter
 
             // construct sidewalk meshes.
             Debug.Log("Construct sidewalks...");
-            // TODO: probably need to invert!
+
             for (int i = 0; i < adjacentSegmentsArray.Length; i++)
             {
                 // use quadratic bezier curve to connect the two points smoothly with the meeting point as support
@@ -172,12 +172,8 @@ namespace PSDLExporter
                 outerSidewalkPoints[3] = QuadraticBezier(connectionPoints[adjacentSegmentsArray[i].Value][1], meetingPoints[i],
                     connectionPoints[adjacentSegmentsArray[(i + 1) % adjacentSegmentsArray.Length].Value][0], 0.75f);
 
-                /*for (int j = 0; j < 5; j++)
-                {
-                    // TODO: set connections (should be roads for first and last and terrain for all.
                     // TODO: are concave shapes permitted?!
-                    perimeterPoints.Add(new PerimeterPoint(new Vertex(outerSidewalkPoints[j].y, node.m_position.y + SIDEWALK_HEIGHT, outerSidewalkPoints[j].x) * CONVERSION_SCALE, null));
-                }*/
+
 
                 Vector2[] sidewalkRoadBorderPoints = new Vector2[5];
 
@@ -240,7 +236,6 @@ namespace PSDLExporter
 
                 Debug.Log("Construct perimeters...");
 
-                // TODO: I have some suspicion that the perimeter might be clockwise instead of counter-clockwise
                 List<PerimeterPoint> roadPerimeterPoints = new List<PerimeterPoint>();
                 List<PerimeterPoint> localTerrainPerimeterPoints = new List<PerimeterPoint>();
 
@@ -314,7 +309,7 @@ namespace PSDLExporter
             Vector2 rot = GetStraightDirection(segIndex, nodeID);//new Vector2(direction.z, direction.x);
             rot.Normalize();
 
-            // approximate angle
+            // calculate angle
             float angle;
 
             if (rot.y >= 0)

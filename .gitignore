@@ -5,3 +5,5 @@
 /.vs
 /PSDLExporter/bin
 /PSDLExporter/obj
+/Testing/bin/Release
+/Testing/obj

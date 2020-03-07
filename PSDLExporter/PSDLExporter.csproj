@@ -57,6 +57,7 @@
     <Compile Include="MeshBuilder.cs" />
     <Compile Include="MeshExporter.cs" />
     <Compile Include="PolygonMesh.cs" />
+    <Compile Include="PolygonTriangulator.cs" />
     <Compile Include="PSDLExporterLoading.cs" />
     <Compile Include="PSDLExporterMod.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

@@ -102,7 +102,6 @@ namespace PSDLExporter
             // fill vertex buffer
             for (int i = 0; i < vertexList.Count; i++)
             {
-                // TODO: might need to adjust orientation. For the old OBJ -> Blender -> 3ds -> MM2CT way x and z had to be swapped.
                 Debug.Log("Filling vertex buffer..");
 
                 blockVertices[4 * i] = new Vertex(vertexList[i][1].z, vertexList[i][1].y, vertexList[i][1].x) * UniversalProperties.CONVERSION_SCALE;
@@ -184,13 +183,13 @@ namespace PSDLExporter
             this.room = room;
         }
 
-        public List<PerimeterPoint> GetLeftPerimeter(ushort startIntersection)
+        public List<PerimeterPoint> GetLeftPerimeter(ushort startIntersection, ushort startSegment)
         {
-            if (startIntersection == nodeIDs[0])
+            if (startIntersection == nodeIDs[0] && startSegment == segmentIDs[0])
             {
                 return leftPerimeter;
             }
-            else if (startIntersection == nodeIDs.Last())
+            else if (startIntersection == nodeIDs.Last() && startSegment == segmentIDs.Last())
             {
                 return rightPerimeter;
             }
@@ -198,22 +197,31 @@ namespace PSDLExporter
             throw new Exception("startSegment is not located at either end of the road!");
         }
 
-        public List<Vertex> TraverseBoundary(ushort startIntersection, bool leftside = true, bool turnAroundOnBridgeOrTunnel = true)
+        public List<Vertex> TraverseBoundary(ushort startIntersection, ushort startSegment, bool leftside = true, bool turnAroundOnBridgeOrTunnel = true)
         {
             List<Vertex> leftBoundaryVertices = new List<Vertex>();
             int index;
             int step;
             RoadElement road = (RoadElement)room.FindElementOfType<RoadElement>();
+            bool hasDeadEnd;
+            ushort endIntersection;
+            ushort endSegment;
 
-            if (startIntersection == nodeIDs[0])
+            if (startIntersection == nodeIDs[0] && startSegment == segmentIDs[0])
             {
                 index = leftside ? 0 : 3;
                 step = 4; // TODO: needs to be adapted for divided roads
+                hasDeadEnd = cSendIntersection == null;
+                endIntersection = nodeIDs.Last();
+                endSegment = segmentIDs.Last();
             }
-            else if(startIntersection == nodeIDs.Last())
+            else if(startIntersection == nodeIDs.Last() && startSegment == segmentIDs.Last())
             {
                 index = leftside ? road.GetVertexCount() - 1 : road.GetVertexCount() - 4;
                 step = -4; // TODO: needs to be adapted for divided roads
+                hasDeadEnd = cSstartIntersection == null;
+                endIntersection = nodeIDs[0];
+                endSegment = segmentIDs[0];
             }
             else
             {
@@ -224,6 +232,13 @@ namespace PSDLExporter
             {
                 leftBoundaryVertices.Add(road.GetVertex(index));
                 index += step;
+            }
+
+            if(hasDeadEnd)
+            {
+                // TODO: add the two vertices inbetween
+                List<Vertex> oppositeDirection = TraverseBoundary(endIntersection, endSegment, leftside, false);
+                leftBoundaryVertices.AddRange(oppositeDirection);
             }
 
             return leftBoundaryVertices;
@@ -274,6 +289,11 @@ namespace PSDLExporter
             points[1] = netMan.m_nodes.m_buffer[nodeIndex].m_position - UniversalProperties.HALFROAD_WIDTH * cornerFactor * normalInPlane;
 
             return points;
+        }
+
+        public bool HasDeadEnd()
+        {
+            return cSstartIntersection == null || cSendIntersection == null;
         }
     }
 }

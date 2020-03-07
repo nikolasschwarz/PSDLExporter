@@ -7,20 +7,33 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PSDLExporter", "PSDLExporte
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PSDL", "..\..\mm2\PSDL.NET-master\PSDL\PSDL.csproj", "{D5FC95B0-23B4-4F06-8BA9-5FC78C4AEA7F}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Testing", "Testing\Testing.csproj", "{D633BF7E-31DF-4270-86A6-CF21CF2C28F1}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
 		Release|Any CPU = Release|Any CPU
+		Testing|Any CPU = Testing|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
 		{4F0A4C7C-4025-4652-9A36-9D3415502F87}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{4F0A4C7C-4025-4652-9A36-9D3415502F87}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{4F0A4C7C-4025-4652-9A36-9D3415502F87}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{4F0A4C7C-4025-4652-9A36-9D3415502F87}.Release|Any CPU.Build.0 = Release|Any CPU
+		{4F0A4C7C-4025-4652-9A36-9D3415502F87}.Testing|Any CPU.ActiveCfg = Release|Any CPU
+		{4F0A4C7C-4025-4652-9A36-9D3415502F87}.Testing|Any CPU.Build.0 = Release|Any CPU
 		{D5FC95B0-23B4-4F06-8BA9-5FC78C4AEA7F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{D5FC95B0-23B4-4F06-8BA9-5FC78C4AEA7F}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{D5FC95B0-23B4-4F06-8BA9-5FC78C4AEA7F}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{D5FC95B0-23B4-4F06-8BA9-5FC78C4AEA7F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D5FC95B0-23B4-4F06-8BA9-5FC78C4AEA7F}.Testing|Any CPU.ActiveCfg = Release|Any CPU
+		{D5FC95B0-23B4-4F06-8BA9-5FC78C4AEA7F}.Testing|Any CPU.Build.0 = Release|Any CPU
+		{D633BF7E-31DF-4270-86A6-CF21CF2C28F1}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D633BF7E-31DF-4270-86A6-CF21CF2C28F1}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D633BF7E-31DF-4270-86A6-CF21CF2C28F1}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D633BF7E-31DF-4270-86A6-CF21CF2C28F1}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D633BF7E-31DF-4270-86A6-CF21CF2C28F1}.Testing|Any CPU.ActiveCfg = Testing|Any CPU
+		{D633BF7E-31DF-4270-86A6-CF21CF2C28F1}.Testing|Any CPU.Build.0 = Testing|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

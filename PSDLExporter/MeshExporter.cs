@@ -74,7 +74,8 @@ namespace PSDLExporter
                     CSGround ground = new CSGround(identifier, intersec);
 
                     ground.FindAdjacentRoadsAndIntersections(roads);
-                    ground.ConstructRoom();
+                    
+                    //ground.ConstructRoom();
 
                     foreach(KeyValuePair<ushort, ushort> id in ground.IdentificationSegments.ToArray())
                     {
@@ -92,6 +93,8 @@ namespace PSDLExporter
 
             foreach(CSGround groundTile in groundTilesSortedByBoundingBoxArea.Values)
             {
+                groundTile.ScanHeight();
+                groundTile.ConstructRoom();
                 rooms.Add(groundTile.Room);
             }
 
