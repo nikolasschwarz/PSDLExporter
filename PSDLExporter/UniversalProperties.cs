@@ -12,7 +12,7 @@ namespace PSDLExporter
         public static readonly float INTERSECTION_OFFSET = 4.0f;
 
         // temporary until we can retrieve individual values from prefab meshes
-        public static readonly float SIDEWALK_OFFSET = 0.15f; // relative offset
-        public static readonly float HALFROAD_WIDTH = 8.0f;
+        //public static readonly float SIDEWALK_OFFSET = 0.15f; // relative offset
+        //public static readonly float HALFROAD_WIDTH = 8.0f;
     }
 }

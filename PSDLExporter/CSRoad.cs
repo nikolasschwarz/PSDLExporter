@@ -20,6 +20,9 @@ namespace PSDLExporter
         private List<PerimeterPoint> rightPerimeter = new List<PerimeterPoint>();
         public List<PerimeterPoint> startPerimeter = new List<PerimeterPoint>();
         public List<PerimeterPoint> endPerimeter = new List<PerimeterPoint>();
+        public readonly float[] profile;
+        private string roadTextureName;
+        private string roadTextureNameLod;
 
         private static NetManager netMan = Singleton<NetManager>.instance;
 
@@ -54,6 +57,13 @@ namespace PSDLExporter
                 cSendIntersection = intersections[currentNode];
             }
 
+            // TODO: divide road into sections depending on the profile
+            profile = RoadAnalyzer.RoadProfile(startSegmentID);
+            int laneCount = RoadAnalyzer.CountCarLanes(startSegmentID);
+            bool isOneway = RoadAnalyzer.IsOneway(startSegmentID);
+
+            roadTextureName = RoadAnalyzer.DetermineRoadTexture(laneCount, isOneway, "f");
+            roadTextureNameLod = RoadAnalyzer.DetermineRoadTexture(laneCount, isOneway, "f", true);
         }
 
         public void BuildRoadBlock()
@@ -98,7 +108,8 @@ namespace PSDLExporter
 
             // now build block
             Debug.Log("Creating block vertices");
-            Vertex[] blockVertices = new Vertex[vertexList.Count * 4];
+            int verticesPerNode = profile.Length;
+            Vertex[] blockVertices = new Vertex[vertexList.Count * verticesPerNode];
             List<PerimeterPoint> perimeterPoints = new List<PerimeterPoint>();
 
             // fill vertex buffer
@@ -106,15 +117,26 @@ namespace PSDLExporter
             {
                 Debug.Log("Filling vertex buffer..");
 
-                blockVertices[4 * i] = new Vertex(vertexList[i][1].z, vertexList[i][1].y, vertexList[i][1].x) * UniversalProperties.CONVERSION_SCALE;
-                blockVertices[4 * i + 3] = new Vertex(vertexList[i][0].z, vertexList[i][0].y, vertexList[i][0].x) * UniversalProperties.CONVERSION_SCALE;
+                blockVertices[verticesPerNode * i] =
+                    new Vertex(vertexList[i][1].z, vertexList[i][1].y, vertexList[i][1].x) * UniversalProperties.CONVERSION_SCALE;
+                blockVertices[verticesPerNode * i + verticesPerNode - 1] =
+                    new Vertex(vertexList[i][0].z, vertexList[i][0].y, vertexList[i][0].x) * UniversalProperties.CONVERSION_SCALE;
 
-                blockVertices[4 * i + 1] = blockVertices[4 * i] * (1.0f - UniversalProperties.SIDEWALK_OFFSET) + blockVertices[4 * i + 3] * UniversalProperties.SIDEWALK_OFFSET;
-                blockVertices[4 * i + 2] = blockVertices[4 * i] * UniversalProperties.SIDEWALK_OFFSET + blockVertices[4 * i + 3] * (1.0f - UniversalProperties.SIDEWALK_OFFSET);
+                Vertex leftToRightVector = blockVertices[verticesPerNode * i + verticesPerNode - 1] - blockVertices[verticesPerNode * i];
 
+                // calculate all points from profile
 
-                blockVertices[4 * i].y += UniversalProperties.SIDEWALK_HEIGHT;
-                blockVertices[4 * i + 3].y += UniversalProperties.SIDEWALK_HEIGHT;
+                for (int j = 1; j < verticesPerNode - 1; j++)
+                {
+                    float relativeOffset = (profile[j] - profile[0]) / (profile.Last() - profile[0]);
+
+                    blockVertices[verticesPerNode * i + j] =
+                        blockVertices[verticesPerNode * i] + leftToRightVector * relativeOffset;
+                }
+
+                // add sidewalk height if sidewalk exists
+                if (profile[0] != profile[1]) blockVertices[verticesPerNode * i].y += UniversalProperties.SIDEWALK_HEIGHT;
+                if (profile[verticesPerNode - 1] != profile[verticesPerNode - 2]) blockVertices[verticesPerNode * i + verticesPerNode - 1].y += UniversalProperties.SIDEWALK_HEIGHT;
 
                 Debug.Log("Setting up perimeter points...");
 
@@ -123,12 +145,12 @@ namespace PSDLExporter
                 if (i == 0)
                 {
                     neighbor = cSstartIntersection.Room;
-                    PerimeterPoint innerLeftPoint = new PerimeterPoint(blockVertices[4 * i + 1], neighbor);
-                    PerimeterPoint innerRightPoint = new PerimeterPoint(blockVertices[4 * i + 2], neighbor);
+                    PerimeterPoint innerLeftPoint = new PerimeterPoint(blockVertices[verticesPerNode * i + 1], neighbor);
+                    PerimeterPoint innerRightPoint = new PerimeterPoint(blockVertices[verticesPerNode * i + 2], neighbor);
 
                     // we need duplicates for multiple connections
-                    PerimeterPoint outerLeftPoint = new PerimeterPoint(blockVertices[4 * i], neighbor);
-                    PerimeterPoint outerRightPoint = new PerimeterPoint(blockVertices[4 * i + 3], neighbor);
+                    PerimeterPoint outerLeftPoint = new PerimeterPoint(blockVertices[verticesPerNode * i], neighbor);
+                    PerimeterPoint outerRightPoint = new PerimeterPoint(blockVertices[verticesPerNode * i + 3], neighbor);
 
                     perimeterPoints.Add(innerRightPoint);
                     perimeterPoints.Insert(0, innerLeftPoint);
@@ -147,8 +169,8 @@ namespace PSDLExporter
                 }
 
 
-                PerimeterPoint leftPoint = new PerimeterPoint(blockVertices[4 * i], null);
-                PerimeterPoint rightPoint = new PerimeterPoint(blockVertices[4 * i + 3], null);
+                PerimeterPoint leftPoint = new PerimeterPoint(blockVertices[verticesPerNode * i], null);
+                PerimeterPoint rightPoint = new PerimeterPoint(blockVertices[verticesPerNode * i + 3], null);
 
                 // Insert left points in opposite order
                 perimeterPoints.Add(rightPoint);
@@ -160,10 +182,10 @@ namespace PSDLExporter
 
                 if (i == vertexList.Count - 1)
                 {
-                    PerimeterPoint outerLeftPoint = new PerimeterPoint(blockVertices[4 * i], neighbor);
-                    PerimeterPoint outerRightPoint = new PerimeterPoint(blockVertices[4 * i + 3], neighbor);
-                    PerimeterPoint innerLeftPoint = new PerimeterPoint(blockVertices[4 * i + 1], neighbor);
-                    PerimeterPoint innerRightPoint = new PerimeterPoint(blockVertices[4 * i + 2], neighbor);
+                    PerimeterPoint outerLeftPoint = new PerimeterPoint(blockVertices[verticesPerNode * i], neighbor);
+                    PerimeterPoint outerRightPoint = new PerimeterPoint(blockVertices[verticesPerNode * i + 3], neighbor);
+                    PerimeterPoint innerLeftPoint = new PerimeterPoint(blockVertices[verticesPerNode * i + 1], neighbor);
+                    PerimeterPoint innerRightPoint = new PerimeterPoint(blockVertices[verticesPerNode * i + 2], neighbor);
 
                     perimeterPoints.Add(outerRightPoint);
                     perimeterPoints.Insert(0, outerLeftPoint);
@@ -180,7 +202,7 @@ namespace PSDLExporter
 
             Debug.Log("Creating road element...");
             RoadElement[] roadArray = new RoadElement[1];
-            roadArray[0] = new RoadElement("r2_f", "swalk_f", "r2_lo_f", blockVertices);
+            roadArray[0] = new RoadElement(roadTextureName, "swalk_f", roadTextureNameLod, blockVertices);
 
             Debug.Log("Creating room...");
             Room room = new Room(roadArray, perimeterPoints, 0, RoomFlags.Road);
@@ -246,16 +268,16 @@ namespace PSDLExporter
 
             if (startIntersection == nodeIDs[0] && startSegment == segmentIDs[0])
             {
-                index = leftside ? 0 : 3;
-                step = 4; // TODO: needs to be adapted for divided roads
+                index = leftside ? 0 : profile.Length - 1;
+                step = profile.Length; // adapted for divided roads
                 hasDeadEnd = cSendIntersection == null;
                 endIntersection = nodeIDs.Last();
                 endSegment = segmentIDs.Last();
             }
             else if(startIntersection == nodeIDs.Last() && startSegment == segmentIDs.Last())
             {
-                index = leftside ? road.GetVertexCount() - 1 : road.GetVertexCount() - 4;
-                step = -4; // TODO: needs to be adapted for divided roads
+                index = leftside ? road.GetVertexCount() - 1 : road.GetVertexCount() - profile.Length;
+                step = -profile.Length; // TODO: needs to be adapted for divided roads
                 hasDeadEnd = cSstartIntersection == null;
                 endIntersection = nodeIDs[0];
                 endSegment = segmentIDs[0];
@@ -336,8 +358,8 @@ namespace PSDLExporter
             Vector3 normalInPlane = new Vector3(-averageDir.z, 0.0f, averageDir.x);
 
             Vector3[] points = new Vector3[2];
-            points[0] = netMan.m_nodes.m_buffer[nodeIndex].m_position + UniversalProperties.HALFROAD_WIDTH * cornerFactor * normalInPlane;
-            points[1] = netMan.m_nodes.m_buffer[nodeIndex].m_position - UniversalProperties.HALFROAD_WIDTH * cornerFactor * normalInPlane;
+            points[0] = netMan.m_nodes.m_buffer[nodeIndex].m_position + profile.Last() * cornerFactor * normalInPlane;
+            points[1] = netMan.m_nodes.m_buffer[nodeIndex].m_position + profile[0] * cornerFactor * normalInPlane;
 
             return points;
         }

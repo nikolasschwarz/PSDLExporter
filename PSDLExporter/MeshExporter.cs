@@ -15,6 +15,8 @@ namespace PSDLExporter
         public static readonly uint NETNODE_COUNT = 32768u;
         public static readonly uint NETSEGMENT_COUNT = 36864u;
 
+        public static List<string> warnings = new List<string>();
+
         public void RetrieveData()
         {
             NetManager nm = Singleton<NetManager>.instance;
@@ -42,6 +44,14 @@ namespace PSDLExporter
                     {
                         CSRoad road = new CSRoad(intersec.NodeID, segIndex, intersections);
                         road.BuildRoadBlock();
+
+                        // test road analyzer
+
+                        float roadWidth = RoadAnalyzer.DetermineRoadWidth(segIndex);
+                        Debug.Log("Road width: " + roadWidth);
+
+                        float sidewalkWidth = RoadAnalyzer.DetermineSidewalkWidth(segIndex);
+                        Debug.Log("Sidewalk width: " + sidewalkWidth);
 
                         // roads are identified by either start or end segment
                         roads.Add(segIndex, road);
@@ -123,8 +133,24 @@ namespace PSDLExporter
             writer.Flush();
             writer.Close();
 
+            // accumulate warnings
+            string warningMessage = "WARNINGS:" + Environment.NewLine;
+
+            if (warnings.Count == 0)
+            {
+                warningMessage += "(none)" + Environment.NewLine;
+            }
+            else
+            {
+                foreach (string w in warnings)
+                {
+                    warningMessage += w + Environment.NewLine;
+                }
+            }
+            warnings.Clear();
+
             ExceptionPanel panel2 = UIView.library.ShowModal<ExceptionPanel>("ExceptionPanel");
-            panel2.SetMessage("PSDLExporter", "Successfully exported PSDL.", false);
+            panel2.SetMessage("PSDLExporter", "Successfully exported PSDL." + Environment.NewLine + Environment.NewLine + warningMessage, false);
         }
     }
 }

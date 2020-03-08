@@ -20,6 +20,7 @@ namespace PSDLExporter
         private Dictionary<KeyValuePair<ushort, ushort>, List<PerimeterPoint>> terrainPerimeterPoints; // map segment to its perimeter points
         private SortedDictionary<float, ushort> adjacentSegments; // map angle to segment (allows to find neighboring roads)
         private Vector2[] meetingPoints;
+        private float[][] roadProfiles;
 
         private Room room;
         private ushort nodeID;
@@ -94,14 +95,18 @@ namespace PSDLExporter
             KeyValuePair<float, ushort>[] adjacentSegmentsArray = adjacentSegments.ToArray();
             meetingPoints = new Vector2[adjacentSegmentsArray.Length];
             connectionPoints = new SortedDictionary<ushort, Vector2[]>();
+            roadProfiles = new float[adjacentSegmentsArray.Length][];
+
             for (int i = 0; i < adjacentSegmentsArray.Length; i++)
             {
                 Vector2[] connection = new Vector2[2];
                 connectionPoints.Add(adjacentSegmentsArray[i].Value, connection);
+                roadProfiles[i] = RoadAnalyzer.RoadProfile(adjacentSegmentsArray[i].Value);
             }
 
             // TODO: probably no longer needed
             Vector2[] roadBounds = new Vector2[2 * adjacentSegmentsArray.Length];
+            
 
             for (int i = 0; i < adjacentSegmentsArray.Length; i++)
             {
@@ -119,8 +124,10 @@ namespace PSDLExporter
                 dirB2d.Normalize();
                 Vector2 normB = new Vector2(dirB2d.y, -dirB2d.x);
 
-                Vector2 supportA = new Vector2(GetNetNode().m_position.z, GetNetNode().m_position.x) - (UniversalProperties.HALFROAD_WIDTH * normA);
-                Vector2 supportB = new Vector2(GetNetNode().m_position.z, GetNetNode().m_position.x) + (UniversalProperties.HALFROAD_WIDTH * normB);
+                
+
+                Vector2 supportA = new Vector2(GetNetNode().m_position.z, GetNetNode().m_position.x) + (roadProfiles[i][0] * normA);
+                Vector2 supportB = new Vector2(GetNetNode().m_position.z, GetNetNode().m_position.x) + (roadProfiles[(i + 1) % adjacentSegmentsArray.Length].Last() * normB);
 
                 roadBounds[2 * i] = supportA;
                 roadBounds[2 * i + 1] = supportB;
@@ -172,19 +179,28 @@ namespace PSDLExporter
                 outerSidewalkPoints[3] = QuadraticBezier(connectionPoints[adjacentSegmentsArray[i].Value][1], meetingPoints[i],
                     connectionPoints[adjacentSegmentsArray[(i + 1) % adjacentSegmentsArray.Length].Value][0], 0.75f);
 
-                    // TODO: are concave shapes permitted?!
+                // TODO: are concave shapes permitted?!
 
 
                 Vector2[] sidewalkRoadBorderPoints = new Vector2[5];
 
                 Vector2 crossingDir0 = connectionPoints[adjacentSegmentsArray[i].Value][0] - connectionPoints[adjacentSegmentsArray[i].Value][1];
-                sidewalkRoadBorderPoints[0] = connectionPoints[adjacentSegmentsArray[i].Value][1] + UniversalProperties.SIDEWALK_OFFSET * crossingDir0;
+
+                float relativeOffset0 = (roadProfiles[i].Last() - roadProfiles[i][roadProfiles[i].Length - 2]) / (roadProfiles[i].Last() - roadProfiles[i][0]);
+                MeshExporter.warnings.Add("relativeOffset0: " + relativeOffset0);
+                sidewalkRoadBorderPoints[0] = connectionPoints[adjacentSegmentsArray[i].Value][1] + relativeOffset0 * crossingDir0;
 
                 Vector2 crossingDir1 = connectionPoints[adjacentSegmentsArray[(i + 1) % adjacentSegmentsArray.Length].Value][1]
                     - connectionPoints[adjacentSegmentsArray[(i + 1) % adjacentSegmentsArray.Length].Value][0];
-                sidewalkRoadBorderPoints[4] = connectionPoints[adjacentSegmentsArray[(i + 1) % adjacentSegmentsArray.Length].Value][0] + UniversalProperties.SIDEWALK_OFFSET * crossingDir1;
 
-                Vector2 supportPoint = meetingPoints[i] + UniversalProperties.SIDEWALK_OFFSET * crossingDir0 + UniversalProperties.SIDEWALK_OFFSET * crossingDir1;
+                float relativeOffset1 = (roadProfiles[(i + 1) % adjacentSegmentsArray.Length][1] - roadProfiles[(i + 1) % adjacentSegmentsArray.Length][0])
+                    / (roadProfiles[(i + 1) % adjacentSegmentsArray.Length].Last() - roadProfiles[(i + 1) % adjacentSegmentsArray.Length][0]);
+                MeshExporter.warnings.Add("relativeOffset1: " + relativeOffset1);
+
+
+                sidewalkRoadBorderPoints[4] = connectionPoints[adjacentSegmentsArray[(i + 1) % adjacentSegmentsArray.Length].Value][0] + relativeOffset1 * crossingDir1;
+
+                Vector2 supportPoint = meetingPoints[i] + relativeOffset0 * crossingDir0 + relativeOffset1 * crossingDir1;
 
                 // TODO: calculate this differently.
                 sidewalkRoadBorderPoints[1] = QuadraticBezier(sidewalkRoadBorderPoints[0], supportPoint, sidewalkRoadBorderPoints[4], 0.25f);
