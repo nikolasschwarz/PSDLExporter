@@ -61,34 +61,60 @@ namespace PSDLExporter
                     if (v.z < minZ) minZ = v.z;
                 }
 
-                // TODO: not true for dead ends or bridges etc.
-                List<PerimeterPoint> perimeterPointsToUpdate = currentRoad.GetLeftPerimeter(currentIntersection.NodeID, nextRoad);
-                if(currentRoad.HasDeadEnd())
-                {
+                // TODO: not true for tunnels or bridges etc.
+                List<PerimeterPoint> perimeterPointsToUpdate = new List<PerimeterPoint>();
+                perimeterPointsToUpdate.AddRange( currentRoad.GetLeftPerimeter(currentIntersection.NodeID, nextRoad));
 
+                ushort endOfThisRoad;
+
+                if (currentRoad.HasDeadEnd())
+                {
+                    // add perimeters to come back on the other side
+                    if (currentRoad.CSstartIntersection == currentIntersection)
+                    {
+                        // dead end at endIntersection
+                        perimeterPointsToUpdate.AddRange(currentRoad.endPerimeter);
+                    }
+                    else if (currentRoad.CSendIntersection == currentIntersection)
+                    {
+                        // dead end at startIntersection
+                        perimeterPointsToUpdate.AddRange(currentRoad.startPerimeter);
+                    }
+                    else
+                    {
+                        throw new Exception("Next intersection could not be found!");
+                    }
+
+                    perimeterPointsToUpdate.AddRange(currentRoad.GetRightPerimeter(currentIntersection.NodeID, nextRoad));
+
+                    // the end is just the same as the start
+                    endOfThisRoad = nextRoad;
+                }
+                else
+                {
+                    
+                    // go to next intersection
+                    if (currentRoad.CSstartIntersection == currentIntersection)
+                    {
+                        currentIntersection = currentRoad.CSendIntersection;
+                        endOfThisRoad = currentRoad.SegmentIDs.Last();
+                    }
+                    else if (currentRoad.CSendIntersection == currentIntersection)
+                    {
+                        currentIntersection = currentRoad.CSstartIntersection;
+                        endOfThisRoad = currentRoad.SegmentIDs[0];
+                    }
+                    else
+                    {
+                        throw new Exception("Next intersection could not be found!");
+                    }
                 }
 
                 foreach( PerimeterPoint pp in perimeterPointsToUpdate)
                 {
                     pp.ConnectedRoom = room;
                 }
-
-
-                ushort endOfThisRoad;
-                if(currentRoad.CSstartIntersection == currentIntersection)
-                {
-                    currentIntersection = currentRoad.CSendIntersection;
-                    endOfThisRoad = currentRoad.SegmentIDs.Last();
-                }
-                else if(currentRoad.CSendIntersection == currentIntersection)
-                {
-                    currentIntersection = currentRoad.CSstartIntersection;
-                    endOfThisRoad = currentRoad.SegmentIDs[0];                   
-                }
-                else
-                {
-                    throw new Exception("Next intersection could not be found!");
-                }
+              
 
                 nextRoad = currentIntersection.GetAdjacentRoadByOffset(endOfThisRoad, 1); // is clockwise
 

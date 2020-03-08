@@ -18,6 +18,8 @@ namespace PSDLExporter
         private CSIntersection cSendIntersection = null;
         private List<PerimeterPoint> leftPerimeter = new List<PerimeterPoint>();
         private List<PerimeterPoint> rightPerimeter = new List<PerimeterPoint>();
+        public List<PerimeterPoint> startPerimeter = new List<PerimeterPoint>();
+        public List<PerimeterPoint> endPerimeter = new List<PerimeterPoint>();
 
         private static NetManager netMan = Singleton<NetManager>.instance;
 
@@ -118,14 +120,25 @@ namespace PSDLExporter
 
                 Room neighbor = null;
 
-                // TODO: perimeters for ground
                 if (i == 0)
                 {
                     neighbor = cSstartIntersection.Room;
                     PerimeterPoint innerLeftPoint = new PerimeterPoint(blockVertices[4 * i + 1], neighbor);
                     PerimeterPoint innerRightPoint = new PerimeterPoint(blockVertices[4 * i + 2], neighbor);
+
+                    // we need duplicates for multiple connections
+                    PerimeterPoint outerLeftPoint = new PerimeterPoint(blockVertices[4 * i], neighbor);
+                    PerimeterPoint outerRightPoint = new PerimeterPoint(blockVertices[4 * i + 3], neighbor);
+
                     perimeterPoints.Add(innerRightPoint);
                     perimeterPoints.Insert(0, innerLeftPoint);
+                    perimeterPoints.Add(outerRightPoint);
+                    perimeterPoints.Insert(0, outerLeftPoint);
+
+                    startPerimeter.Add(innerLeftPoint);
+                    startPerimeter.Insert(0, innerRightPoint);
+                    startPerimeter.Add(outerLeftPoint);
+                    startPerimeter.Insert(0, outerRightPoint);
                 }
                 else if (i == vertexList.Count - 1 && cSendIntersection != null)
                 {
@@ -134,23 +147,33 @@ namespace PSDLExporter
                 }
 
 
-                PerimeterPoint leftPoint = new PerimeterPoint(blockVertices[4 * i], neighbor);
-                PerimeterPoint rightPoint = new PerimeterPoint(blockVertices[4 * i + 3], neighbor);
+                PerimeterPoint leftPoint = new PerimeterPoint(blockVertices[4 * i], null);
+                PerimeterPoint rightPoint = new PerimeterPoint(blockVertices[4 * i + 3], null);
 
                 // Insert left points in opposite order
                 perimeterPoints.Add(rightPoint);
                 perimeterPoints.Insert(0, leftPoint);
 
-                // opposite direction
+                // opposite direction so we can traverse them in correct order for adjacent rooms
                 leftPerimeter.Add(leftPoint);
                 rightPerimeter.Insert(0, rightPoint);
 
                 if (i == vertexList.Count - 1)
                 {
+                    PerimeterPoint outerLeftPoint = new PerimeterPoint(blockVertices[4 * i], neighbor);
+                    PerimeterPoint outerRightPoint = new PerimeterPoint(blockVertices[4 * i + 3], neighbor);
                     PerimeterPoint innerLeftPoint = new PerimeterPoint(blockVertices[4 * i + 1], neighbor);
                     PerimeterPoint innerRightPoint = new PerimeterPoint(blockVertices[4 * i + 2], neighbor);
+
+                    perimeterPoints.Add(outerRightPoint);
+                    perimeterPoints.Insert(0, outerLeftPoint);
                     perimeterPoints.Add(innerRightPoint);
                     perimeterPoints.Insert(0, innerLeftPoint);
+
+                    endPerimeter.Add(outerLeftPoint);
+                    endPerimeter.Add(innerLeftPoint);
+                    endPerimeter.Add(innerRightPoint);
+                    endPerimeter.Add(outerRightPoint);
                 }
 
             }
@@ -197,6 +220,20 @@ namespace PSDLExporter
             throw new Exception("startSegment is not located at either end of the road!");
         }
 
+        public List<PerimeterPoint> GetRightPerimeter(ushort startIntersection, ushort startSegment)
+        {
+            if (startIntersection == nodeIDs[0] && startSegment == segmentIDs[0])
+            {
+                return rightPerimeter;
+            }
+            else if (startIntersection == nodeIDs.Last() && startSegment == segmentIDs.Last())
+            {
+                return leftPerimeter;
+            }
+
+            throw new Exception("startSegment is not located at either end of the road!");
+        }
+
         public List<Vertex> TraverseBoundary(ushort startIntersection, ushort startSegment, bool leftside = true, bool turnAroundOnBridgeOrTunnel = true)
         {
             List<Vertex> leftBoundaryVertices = new List<Vertex>();
@@ -236,7 +273,21 @@ namespace PSDLExporter
 
             if(hasDeadEnd)
             {
-                // TODO: add the two vertices inbetween
+                // restore last valid index
+                index -= step;
+                // add the two vertices inbetween
+                if(index % Math.Abs(step) == 0)
+                {
+                    // need to add to index
+                    leftBoundaryVertices.Add(road.GetVertex(index + 1));
+                    leftBoundaryVertices.Add(road.GetVertex(index + 2));
+                }
+                else
+                {
+                    leftBoundaryVertices.Add(road.GetVertex(index - 1));
+                    leftBoundaryVertices.Add(road.GetVertex(index - 2));
+                }
+
                 List<Vertex> oppositeDirection = TraverseBoundary(endIntersection, endSegment, leftside, false);
                 leftBoundaryVertices.AddRange(oppositeDirection);
             }
