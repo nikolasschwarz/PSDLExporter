@@ -16,7 +16,7 @@ namespace PSDLExporter
     {
         NetManager netMan = Singleton<NetManager>.instance;
 
-        public SortedDictionary<ushort, CSIntersection> CreateAllIntersections()
+        public SortedDictionary<ushort, CSIntersection> CreateAllIntersections(string style)
         {
             SortedDictionary<ushort, CSIntersection> intersections = new SortedDictionary<ushort, CSIntersection>();
 
@@ -27,7 +27,7 @@ namespace PSDLExporter
                     && /*.CountSegments()*/ RoadUtils.GetAllAdjacentSegments(netMan.m_nodes.m_buffer[i], NetInfo.LaneType.Vehicle).Count > 2)
                 {
 
-                    CSIntersection intersection = new CSIntersection(i, intersectionNo);
+                    CSIntersection intersection = new CSIntersection(i, intersectionNo, style);
                     Debug.Log("Calculate adjacent segments...");
                     intersection.CalculateAdjacentSegments();
                     Debug.Log("Calculate connection points...");

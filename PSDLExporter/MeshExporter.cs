@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using UnityEngine;
 
 namespace PSDLExporter
@@ -17,7 +18,7 @@ namespace PSDLExporter
 
         public static List<string> warnings = new List<string>();
 
-        public void RetrieveData()
+        public void RetrieveData(string style = "f")
         {
             NetManager nm = Singleton<NetManager>.instance;
 
@@ -26,7 +27,7 @@ namespace PSDLExporter
             MeshBuilder meshBuilder = new MeshBuilder();
             List<Room> rooms = new List<Room>();
 
-            SortedDictionary<ushort, CSIntersection> intersections = meshBuilder.CreateAllIntersections();
+            SortedDictionary<ushort, CSIntersection> intersections = meshBuilder.CreateAllIntersections(style);
 
             foreach (CSIntersection intersection in intersections.Values)
             {
@@ -42,16 +43,16 @@ namespace PSDLExporter
                     // make sure road has not been built already starting from the other side.
                     if (!roads.ContainsKey(segIndex))
                     {
-                        CSRoad road = new CSRoad(intersec.NodeID, segIndex, intersections);
+                        CSRoad road = new CSRoad(intersec.NodeID, segIndex, intersections, style);
                         road.BuildRoadBlock();
 
                         // test road analyzer
 
-                        float roadWidth = RoadAnalyzer.DetermineRoadWidth(segIndex);
+                        /*float roadWidth = RoadAnalyzer.DetermineRoadWidth(segIndex);
                         Debug.Log("Road width: " + roadWidth);
 
                         float sidewalkWidth = RoadAnalyzer.DetermineSidewalkWidth(segIndex);
-                        Debug.Log("Sidewalk width: " + sidewalkWidth);
+                        Debug.Log("Sidewalk width: " + sidewalkWidth);*/
 
                         // roads are identified by either start or end segment
                         roads.Add(segIndex, road);
@@ -63,49 +64,69 @@ namespace PSDLExporter
                 }
             }
 
-            // a ground tile can be identified by a pair of segments adjacent to an intersection that border the ground tile.
-            Dictionary<KeyValuePair<ushort, ushort>, CSGround> groundTiles = new Dictionary<KeyValuePair<ushort, ushort>, CSGround>();
-
-            // TODO: allow duplicate keys!
-            SortedList<float, CSGround> groundTilesSortedByBoundingBoxArea = new SortedList<float, CSGround>();
-
-            foreach (CSIntersection intersec in intersections.Values)
+            // generate ground
+            try
             {
-                ushort[] adjacentSegments = intersec.AdjacentSegments.Values.ToArray();
+                // a ground tile can be identified by a pair of segments adjacent to an intersection that border the ground tile.
+                Dictionary<KeyValuePair<ushort, ushort>, CSGround> groundTiles = new Dictionary<KeyValuePair<ushort, ushort>, CSGround>();
+
+                // TODO: allow duplicate keys!
+                SortedList<float, CSGround> groundTilesSortedByBoundingBoxArea = new SortedList<float, CSGround>();
 
 
-                for(int i = 0; i < adjacentSegments.Length; i++)
+                foreach (CSIntersection intersec in intersections.Values)
                 {
-                    KeyValuePair<ushort, ushort> identifier = new KeyValuePair<ushort, ushort>(adjacentSegments[i], adjacentSegments[(i + 1) % adjacentSegments.Length]);
+                    ushort[] adjacentSegments = intersec.AdjacentSegments.Values.ToArray();
 
-                    if (groundTiles.ContainsKey(identifier)) continue;
 
-                    // now setup ground tile
-                    CSGround ground = new CSGround(identifier, intersec);
-
-                    ground.FindAdjacentRoadsAndIntersections(roads);
-                    
-                    //ground.ConstructRoom();
-
-                    foreach(KeyValuePair<ushort, ushort> id in ground.IdentificationSegments.ToArray())
+                    for (int i = 0; i < adjacentSegments.Length; i++)
                     {
-                        groundTiles.Add(id, ground);
+                        KeyValuePair<ushort, ushort> identifier = new KeyValuePair<ushort, ushort>(adjacentSegments[i], adjacentSegments[(i + 1) % adjacentSegments.Length]);
+
+                        if (groundTiles.ContainsKey(identifier)) continue;
+
+                        // now setup ground tile
+                        CSGround ground = new CSGround(identifier, intersec);
+
+                        try
+                        {
+                            ground.FindAdjacentRoadsAndIntersections(roads);
+
+                            foreach (KeyValuePair<ushort, ushort> id in ground.IdentificationSegments.ToArray())
+                            {
+                                groundTiles.Add(id, ground);
+                            }
+                            //ground.ConstructRoom();                 
+                            groundTilesSortedByBoundingBoxArea.Add(ground.CalculateBoundingBoxArea(), ground);
+                        }
+                        catch(Exception ex)
+                        {
+                            warnings.Add("Ground generation failed at traversing boundary! Details: " + ex.Message + " at " + ex.StackTrace);
+                        }
+                  
                     }
+                }
 
-                    groundTilesSortedByBoundingBoxArea.Add(ground.CalculateBoundingBoxArea(), ground);
+                // ground tile with the largest bounding box is the outer one that encapsulates all roads. For now, we will ignore it.
+                groundTilesSortedByBoundingBoxArea.Remove(groundTilesSortedByBoundingBoxArea.ToArray().Last().Key);
 
-
+                foreach (CSGround groundTile in groundTilesSortedByBoundingBoxArea.Values)
+                {
+                    try
+                    {
+                        groundTile.ScanHeight();
+                        groundTile.ConstructRoom();
+                        rooms.Add(groundTile.Room);
+                    }
+                    catch (Exception ex)
+                    {
+                        warnings.Add("Ground generation failed at constructing room! Details: " + ex.Message + " at " + ex.StackTrace);
+                    }
                 }
             }
-
-            // ground tile with the largest bounding box is the outer one that encapsulates all roads. For now, we will ignore it.
-            groundTilesSortedByBoundingBoxArea.Remove(groundTilesSortedByBoundingBoxArea.ToArray().Last().Key);
-
-            foreach(CSGround groundTile in groundTilesSortedByBoundingBoxArea.Values)
+            catch(Exception ex)
             {
-                groundTile.ScanHeight();
-                groundTile.ConstructRoom();
-                rooms.Add(groundTile.Room);
+                warnings.Add("Ground generation failed! Details: " + ex.Message + " at " + ex.StackTrace);
             }
 
             PSDLFile file = new PSDLFile();
@@ -113,8 +134,11 @@ namespace PSDLExporter
             file.Rooms = rooms;
             file.Version = 0;
 
-            string psdlLocation = @"D:\Games\SteamLibrary\steamapps\common\Cities_Skylines\test.psdl";
-            if(File.Exists(psdlLocation)) File.Delete(psdlLocation);
+            //TODO: filter other illegal characters and generate unique city basename
+            string psdlLocation = @"PSDLExporter\Exports\" + Regex.Replace(Singleton<SimulationManager>.instance.m_metaData.m_CityName, @"\s+", "_")
+                + "_" + Singleton<SimulationManager>.instance.m_metaData.m_WorkshopPublishedFileId.AsUInt64 + ".psdl";           
+
+            if (File.Exists(psdlLocation)) File.Delete(psdlLocation);
             file.SaveAs(psdlLocation);
 
             // debug

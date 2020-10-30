@@ -63,7 +63,8 @@ namespace PSDLExporter
 
                 // TODO: not true for tunnels or bridges etc.
                 List<PerimeterPoint> perimeterPointsToUpdate = new List<PerimeterPoint>();
-                perimeterPointsToUpdate.AddRange( currentRoad.GetLeftPerimeter(currentIntersection.NodeID, nextRoad));
+                //perimeterPointsToUpdate.AddRange( currentRoad.GetLeftPerimeter(currentIntersection.NodeID, nextRoad));
+                perimeterPointsToUpdate.AddRange(currentRoad.TraversePerimeter(currentIntersection.NodeID, nextRoad));
 
                 ushort endOfThisRoad;
 
@@ -169,6 +170,7 @@ namespace PSDLExporter
             }*/
 
             // iterate over vertices and connect them
+
             for(uint i = 0; i < vertices.GetLength(0) - 1; i++)
             {
                 for (uint k = 0; k < vertices.GetLength(1) - 1; k++)
@@ -246,15 +248,26 @@ namespace PSDLExporter
             for (int i = 0; i < perimeter.Count; i++)
             {
                 // skip duplicates
-                if (perimeterVertices.Count == 0 || !perimeter[i].Vertex.Equals(perimeterVertices.Last()))
+                if (perimeterVertices.Count == 0 ||
+                    (perimeter[i].Vertex.x != perimeterVertices.Last().x || perimeter[i].Vertex.z != perimeterVertices.Last().z))
                 {
                     perimeterVertices.Add(perimeter[i].Vertex);
+                }
+                else if(perimeterVertices.Count > 0 && perimeter[i].Vertex.y != perimeterVertices.Last().y)
+                {
+                    MeshExporter.warnings.Add("Height is not aligned correctly. Discrepancy: " + (perimeter[i].Vertex.y - perimeterVertices.Last().y));
                 }
             }
 
             // remove duplicates at end
-            while(perimeterVertices.Count > 0 && perimeterVertices[0].Equals(perimeterVertices.Last()))
+            while(perimeterVertices.Count > 0 &&
+                (perimeter[0].Vertex.x == perimeterVertices.Last().x && perimeter[0].Vertex.z == perimeterVertices.Last().z))
             {
+                if (perimeter[0].Vertex.y != perimeterVertices.Last().y)
+                {
+                    MeshExporter.warnings.Add("Height is not aligned correctly. Discrepancy: " + (perimeter[0].Vertex.y - perimeterVertices.Last().y));
+                }
+
                 Debug.Log("Removing duplicate...");
                 perimeterVertices.RemoveAt(perimeterVertices.Count - 1);
                 Debug.Log("Removed duplicate.");

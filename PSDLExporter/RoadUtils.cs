@@ -119,13 +119,15 @@ namespace PSDLExporter
 
         public static float QueryHeight(float x, float z)
         {
+            x /= UniversalProperties.CONVERSION_SCALE;
+            z /= UniversalProperties.CONVERSION_SCALE;
             TerrainManager terMan = Singleton<TerrainManager>.instance;
 
             // TODO: maybe adapt to polygon sizes and dynamically decide whether we should use min, max or avg depending on the environment
             terMan.CalculateAreaHeight(z - 0.1f, x - 0.1f, z + 0.1f, x + 0.1f, out int min, out int avg, out int max);
 
             //Debug.Log("heights are: " + min + ", " + avg + ", " + max);
-            return avg / 64.0f; // scale was figured out empirically. Needs more testing!
+            return avg / 64.0f * UniversalProperties.CONVERSION_SCALE; // scale was figured out empirically. Needs more testing!
         }
     }
 }

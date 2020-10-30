@@ -119,6 +119,23 @@ namespace PSDLExporter
             // Respond to button click.
             m_button.eventMouseUp += ButtonMouseUp;
 
+            // set up directory structure if it doesn't already exist.
+
+            if(!Directory.Exists("PSDLExporter"))
+            {
+                Directory.CreateDirectory("PSDLExporter");
+            }
+
+            if (!Directory.Exists(@"PSDLExporter\Exports"))
+            {
+                Directory.CreateDirectory(@"PSDLExporter\Exports");
+            }
+
+            if (!Directory.Exists(@"PSDLExporter\CustomTextures"))
+            {
+                Directory.CreateDirectory(@"PSDLExporter\CustomTextures");
+            }
+
         }
 
         public void OnLevelUnloading()
@@ -188,12 +205,21 @@ namespace PSDLExporter
 
         private void ButtonMouseUp(UIComponent p_component, UIMouseEventParameter p_eventParam)
         {
-            MeshExporter meshExporter = new MeshExporter();
-            meshExporter.RetrieveData();
+            
 
-            TerrainManager tm = Singleton<TerrainManager>.instance;
+            //OptionsUI options = new OptionsUI();
+            UIView v = UIView.GetAView();
+            UIComponent uic = v.AddUIComponent(typeof(OptionsUI));
+            uic.CenterToParent();
 
-            //tm.SampleRawHeight(0.0f, 0.0f);
+            uic.Show();
+
+            
+            //options.OpenOptions();
+
+            // TODO: move to event handler
+
+            
         }
 
         public static void DebugLog(String p_message)

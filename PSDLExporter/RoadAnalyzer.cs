@@ -1,8 +1,9 @@
-﻿using ColossalFramework;
+using ColossalFramework;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using UnityEngine;
 
 namespace PSDLExporter
@@ -13,6 +14,18 @@ namespace PSDLExporter
         private static readonly float LANE_WIDTH = 5.0f;
         public static readonly float SIDEWALK_WIDTH = 3.0f;
 
+        public static bool IsCustomStyleValid(string style)
+        {
+            style = style.ToLower();
+            if (style.Equals("l") || style.Equals("f"))
+            {
+                return false;
+            }
+
+            // only permit characters 
+            return Regex.IsMatch(style, @"^[a-z]+$");
+        }
+
         public static bool IsOneway(ushort segmentID)
         {
             int l = 0;
@@ -20,6 +33,18 @@ namespace PSDLExporter
             netMan.m_segments.m_buffer[segmentID].CountLanes(segmentID, NetInfo.LaneType.Vehicle, VehicleInfo.VehicleType.All, ref r, ref l);
 
             return r == 0 || l == 0;
+        }
+
+        public static bool IsAsymmetric(ushort segmentID)
+        {
+            int l = 0;
+            int r = 0;
+            netMan.m_segments.m_buffer[segmentID].CountLanes(segmentID, NetInfo.LaneType.Vehicle, VehicleInfo.VehicleType.All, ref r, ref l);
+
+            // we do not consider a oneway to be asymmetric because a symmetric texture can be used
+            if (r == 0 || l == 0) return false;
+
+            return r != l;
         }
 
         public static int CountCarLanes(ushort segmentID)
@@ -31,7 +56,7 @@ namespace PSDLExporter
             return r + l;
         }
 
-        public static IntervalSet<float> AnalyzeRoadAtLevel(ushort segmentID, float level)
+        public static Mesh GetMesh(ushort segmentID)
         {
             NetSegment segment = RoadUtils.GetNetSegment(segmentID);
 
@@ -64,6 +89,42 @@ namespace PSDLExporter
                 }
             }
 
+            return meshToAnalyze;
+        }
+
+        public static IntervalSet<float> FindPlateaus(ushort segmentID)
+        {
+            Mesh meshToAnalyze = GetMesh(segmentID);
+            IntervalSet<float> plateaus = new IntervalSet<float>();
+
+            for (int i = 0; i < meshToAnalyze.triangles.Length; i += 3)
+            {
+                // for each edge check if it is on road level and add it to the interval set
+                int i0 = meshToAnalyze.triangles[i];
+                int i1 = meshToAnalyze.triangles[i + 1];
+                int i2 = meshToAnalyze.triangles[i + 2];
+
+                Vector3 v0 = meshToAnalyze.vertices[i0];
+                Vector3 v1 = meshToAnalyze.vertices[i1];
+                Vector3 v2 = meshToAnalyze.vertices[i2];
+
+                float maxElevation = Mathf.Max(v0.y, v1.y, v2.y);
+                float minElevation = Mathf.Min(v0.y, v1.y, v2.y);
+
+                if (maxElevation - minElevation < Mathf.Epsilon)
+                {
+                    // part of plateau
+                    plateaus.UnionInterval(new Interval<float>(minElevation, maxElevation));
+                }
+            }
+
+            return plateaus;
+        }
+
+        public static IntervalSet<float> AnalyzeRoadAtLevel(ushort segmentID, float level)
+        {
+            Mesh meshToAnalyze = GetMesh(segmentID);
+
             IntervalSet<float> onRoadLevel = new IntervalSet<float>();
 
             // now loop through triangles
@@ -79,19 +140,14 @@ namespace PSDLExporter
                 Vector3 v1 = meshToAnalyze.vertices[i1];
                 Vector3 v2 = meshToAnalyze.vertices[i2];
 
-                if (Mathf.Abs(v0.y - level) < Mathf.Epsilon && Mathf.Abs(v1.y - level) < Mathf.Epsilon)
+                //if ( minElevation > level - Mathf.Epsilon && maxElevation < level + Mathf.Epsilon)
+                if (Mathf.Abs(v2.y - level) < Mathf.Epsilon && Mathf.Abs(v1.y - level) < Mathf.Epsilon && Mathf.Abs(v0.y - level) < Mathf.Epsilon)
                 {
-                    onRoadLevel.UnionInterval(new Interval<float>(v0.x, v1.x));
-                }
+                    // part of plateau
+                    float maxX = Mathf.Max(v0.x, v1.x, v2.x);
+                    float minX = Mathf.Min(v0.x, v1.x, v2.x);
 
-                if (Mathf.Abs(v1.y - level) < Mathf.Epsilon && Mathf.Abs(v2.y - level) < Mathf.Epsilon)
-                {
-                    onRoadLevel.UnionInterval(new Interval<float>(v1.x, v2.x));
-                }
-
-                if (Mathf.Abs(v2.y - level) < Mathf.Epsilon && Mathf.Abs(v0.y - level) < Mathf.Epsilon)
-                {
-                    onRoadLevel.UnionInterval(new Interval<float>(v2.x, v0.x));
+                    onRoadLevel.UnionInterval(new Interval<float>(minX, maxX));
                 }
             }
 
@@ -119,23 +175,42 @@ namespace PSDLExporter
         public static float[] RoadProfile(ushort segmentID)
         {
             // TODO: A much safer method would be to search for plateaus and sort them by altitude to identify components
-            IntervalSet<float> onRoadLevel = AnalyzeRoadAtLevel(segmentID, -0.3f);
+            List<IntervalSet<float>> plateauProfile = new List<IntervalSet<float>>();
 
-            IntervalSet<float> onSidewalkLevel = AnalyzeRoadAtLevel(segmentID, 0.0f);
+            IntervalSet<float> plateaus = FindPlateaus(segmentID);
+
+            foreach (Interval<float> interval in plateaus.Intervals)
+            {
+                Debug.Log("Interval: " + interval.lower + ", " + interval.upper);
+                IntervalSet<float> plateau = AnalyzeRoadAtLevel(segmentID, (interval.lower + interval.upper) * 0.5f);
+                plateauProfile.Add(plateau);
+            }
+
+            IntervalSet<float> onRoadLevel = plateauProfile[0];//AnalyzeRoadAtLevel(segmentID, -0.3f);
+
+            IntervalSet<float> onSidewalkLevel = new IntervalSet<float>();
+
+            if (plateauProfile.Count > 1)
+            {
+                onSidewalkLevel = plateauProfile[1];
+            }
+
+            Debug.Log("roadLevel: " + onRoadLevel.Intervals.Count);
+            Debug.Log("sidewalkLevel: " + onSidewalkLevel.Intervals.Count);
 
             float[] profile;
 
-            if(onRoadLevel.Intervals.Count == 1)
+            if (onRoadLevel.Intervals.Count == 1)
             {
                 // normal road
                 profile = new float[4];
 
-                if(onSidewalkLevel.Intervals.Count > 2)
+                if (onSidewalkLevel.Intervals.Count > 2)
                 {
                     throw new Exception("Road type either not recognized or not supported!");
                 }
-                
-                if(onSidewalkLevel.Intervals.Count == 0)
+
+                if (onSidewalkLevel.Intervals.Count == 0)
                 {
                     // road without sidewalk
                     profile[0] = profile[1] = onRoadLevel.Intervals[0].lower;
@@ -144,7 +219,7 @@ namespace PSDLExporter
                 else
                 {
                     // left side
-                    if(onSidewalkLevel.Intervals[0].lower < onRoadLevel.Intervals[0].lower)
+                    if (onSidewalkLevel.Intervals[0].lower < onRoadLevel.Intervals[0].lower)
                     {
                         // left sidewalk exists
                         profile[0] = onSidewalkLevel.Intervals[0].lower;
@@ -194,7 +269,7 @@ namespace PSDLExporter
                         // left sidewalk exists
                         profile[0] = onSidewalkLevel.Intervals[0].lower;
                         profile[1] = onRoadLevel.Intervals[0].lower;
-                        
+
                     }
                     else
                     {
@@ -225,12 +300,47 @@ namespace PSDLExporter
             return profile;
         }
 
+        public static string SidewalkTexture(string style)
+        {
+            if (style.Equals("l"))
+            {
+                return "swalk_stone_l";
+            }
+
+            return "swalk_" + style;
+        }
+
+        public static string SidewalkIntersectionTexture(string style)
+        {
+            if (style.Equals("l"))
+            {
+                return "swalk_stone02_l";
+            }
+
+            return "swalk_inter_" + style;
+        }
+
+        public static string CrosswalkTexture(string style)
+        {
+            if (style.Equals("l"))
+            {
+                return "rxwalk02_l";
+            }
+
+            return "rxwalk_" + style;
+        }
+
+        public static string IntersectionTexture(string style)
+        {
+            return "rinter_" + style;
+        }
+
         public static string DetermineRoadTexture(int laneCount, bool isOneway, string style, bool lod = false)
         {
 
             string attributes = "";
 
-            if(isOneway && laneCount % 2 == 0 && !style.Equals("l"))
+            if (isOneway && laneCount % 2 == 0 && !style.Equals("l"))
             {
                 attributes += "_oneway";
             }
@@ -252,6 +362,24 @@ namespace PSDLExporter
             }
 
             return textureName;
+        }
+
+        public enum ElevationType
+        {
+            Standard,
+            Elevated,
+            Bridge, // TODO
+            Tunnel
+        };
+
+        public static ElevationType DetermineElevationType(ushort segmentID)
+        {
+            NetSegment segment = RoadUtils.GetNetSegment(segmentID);
+
+            if (segment.Info.m_netAI.IsOverground()) return ElevationType.Elevated;
+            if (segment.Info.m_netAI.IsUnderground()) return ElevationType.Tunnel;
+
+            return ElevationType.Standard;
         }
     }
 }
