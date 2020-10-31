@@ -1,4 +1,5 @@
-﻿using ColossalFramework.UI;
+﻿using ColossalFramework;
+using ColossalFramework.UI;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -10,34 +11,6 @@ namespace PSDLExporter
     public class OptionsUI : UIPanel
     {
         public OptionsUI() { }
-
-       /* public void OpenOptions()
-        {
-            UIView view = UIView.GetAView();
-
-            UIPanel panel = view.AddUIComponent(typeof(UIPanel)) as UIPanel;
-            panel.name = "PSDL Export Options";
-
-            UILabel title = panel.AddUIComponent<UILabel>();
-            title.text = "Style:";
-
-           /* UICheckBox styleLondon = panel.AddUIComponent<UICheckBox>();
-            UILabel styleLondonlabel = styleLondon.AddUIComponent<UILabel>();
-            styleLondonlabel.text = "London";
-            styleLondon.isChecked = true;
-
-            UICheckBox styleSF = panel.AddUIComponent<UICheckBox>();
-            styleSF.label = new UILabel();
-            styleSF.label.text = "San Francisco";
-            styleSF.isChecked = false;
-
-            UICheckBox styleCustom = panel.AddUIComponent<UICheckBox>();
-            styleSF.label = new UILabel();
-            styleCustom.label.text = "Custom:";
-            styleCustom.isChecked = false;*//*
-
-            panel.Show();
-        }*/
 
         public override void Start()
         {
@@ -54,7 +27,7 @@ namespace PSDLExporter
             // road style
             UILabel l = this.AddUIComponent<UILabel>();
             l.text = "RoadStyle";
-            l.eventClick += new MouseEventHandler((component, param) => { component.parent.Hide(); });
+            //l.eventClick += new MouseEventHandler((component, param) => { component.parent.Hide(); });
             l.relativePosition = new Vector3(10.0f, 10.0f, 0.0f);
 
             UICheckBox roadStyle_london = (UICheckBox)helper.AddCheckbox("London", true, (value) => { });
@@ -75,9 +48,33 @@ namespace PSDLExporter
             roadStyle_customName.canFocus = true;
             roadStyle_customName.isInteractive = true;
             roadStyle_customName.enabled = true;
-            roadStyle_customName.textColor = Color.white;
+            roadStyle_customName.textColor = Color.black;
 
             RadioButtonCollection roadStyle = new RadioButtonCollection(roadStyle_london, roadStyle_sf, roadStyle_custom);
+
+            // file name
+            UILabel filenameLabel = this.AddUIComponent<UILabel>();
+            filenameLabel.text = "Filename: ";
+            filenameLabel.relativePosition = new Vector3(10.0f, 500 - 65, 0.0f);
+
+            UITextField filenameTextField = this.AddUIComponent<UITextField>();
+            filenameTextField.relativePosition = new Vector3(100.0f, 500 - 65, 0.0f);
+            filenameTextField.height = 16.0f;
+            filenameTextField.width = 390.0f;
+            filenameTextField.normalBgSprite = "TextFieldPanel";
+            filenameTextField.hoveredBgSprite = "TextFieldPanelHovered";
+            filenameTextField.builtinKeyNavigation = true;
+            filenameTextField.readOnly = false;
+            filenameTextField.canFocus = true;
+            filenameTextField.isInteractive = true;
+            filenameTextField.enabled = true;
+            filenameTextField.textColor = Color.black;
+            string name = "";
+            if (Singleton<SimulationManager>.instance.m_metaData.m_CityName != null)
+            {
+                name += Singleton<SimulationManager>.instance.m_metaData.m_CityName;
+            }
+            filenameTextField.text = name;
 
 
             // confirmation buttons
@@ -87,7 +84,7 @@ namespace PSDLExporter
             exportButton.height = 40;
             exportButton.relativePosition = new Vector3(500 - 205, 500 - 45, 0.0f);
             exportButton.text = "Export";
-            exportButton.eventClick += new MouseEventHandler(StartExport(roadStyle_london, roadStyle_sf, roadStyle_customName));
+            exportButton.eventClick += new MouseEventHandler(StartExport(roadStyle_london, roadStyle_sf, roadStyle_customName, filenameTextField));
             SetupStandardSprites(ref exportButton);
 
             UIButton cancelButton = this.AddUIComponent<UIButton>();
@@ -99,7 +96,7 @@ namespace PSDLExporter
             SetupStandardSprites(ref cancelButton);
         }
 
-        private static MouseEventHandler StartExport(UICheckBox roadStyle_london, UICheckBox roadStyle_sf, UITextField roadStyle_customName)
+        private static MouseEventHandler StartExport(UICheckBox roadStyle_london, UICheckBox roadStyle_sf, UITextField roadStyle_customName, UITextField filename)
         {
             return (component, param) =>
             {
@@ -133,7 +130,7 @@ namespace PSDLExporter
                 try
                 {
                     style = style.ToLower();
-                    meshExporter.RetrieveData(style);
+                    meshExporter.RetrieveData(filename.text, style);
                 }
                 catch (Exception ex)
                 {

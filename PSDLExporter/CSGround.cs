@@ -153,6 +153,85 @@ namespace PSDLExporter
             } while (nextRoad != firstRoad);
         }
 
+        private int RoundTowards(float value, float direction)
+        {
+            if(value < direction)
+            {
+                return Mathf.CeilToInt(value);
+            }
+            return Mathf.FloorToInt(value);
+        }
+
+        private List<Vertex> FindGridIntersections(Vertex v0, Vertex v1)
+        {
+            List<Vertex> intersections = new List<Vertex>();
+            // vertical grid line
+            int startX = RoundTowards(v0.x / CELL_SIZE, v1.x / CELL_SIZE);
+            int endX = RoundTowards(v1.x / CELL_SIZE, v0.x / CELL_SIZE);
+            int dirX = (int)Mathf.Sign(v1.x - v0.x);
+
+            for(int i = Math.Min(startX, endX); i <= Math.Max(startX, endX); i ++)
+            {
+                float x = CELL_SIZE * i;
+                float frac = (x - v0.x) / (v1.x - v0.x);
+                float z = v0.z + frac * (v1.z - v0.z);
+                float y = RoadUtils.QueryHeight(x, z);
+                intersections.Add(new Vertex(x, y, z));
+            }
+
+            // horizontal grid line   
+            int startZ = RoundTowards(v0.z / CELL_SIZE, v1.z / CELL_SIZE);
+            int endZ = RoundTowards(v1.z / CELL_SIZE, v0.z / CELL_SIZE);
+            int dirZ = (int)Mathf.Sign(v1.z - v0.z);
+
+            for (int i = Math.Min(startZ, endZ); i <= Math.Max(startZ, endZ); i++)
+            {
+                float z = CELL_SIZE * i;
+                float frac = (z - v0.z) / (v1.z - v0.z);
+                float x = v0.x + frac * (v1.x - v0.x);
+                float y = RoadUtils.QueryHeight(x, z);
+                intersections.Add(new Vertex(x, y, z));
+            }
+
+            intersections.Sort((v, w) => (int)Mathf.Sign(w.x - v.x) * dirX);
+
+            return intersections;
+        }
+
+        private void PolygonToVertexEdgeList(List<List<Vertex>> polygon, out List<Vertex> polyVertices, out List<Edge> polyEdges)
+        {
+            polyVertices = new List<Vertex>();
+            polyEdges = new List<Edge>();
+            // turn into vertex and edge list
+            uint index = 0;
+
+            foreach (List<Vertex> vertexList in polygon)
+            {
+                // skip degenerate cases
+                if (vertexList.Count < 3)
+                {
+                    Debug.Log("Skipping degenerate case with " + vertexList.Count + " vertices.");
+                    continue;
+                }
+
+                vertexList.Reverse();
+
+                uint firstIndex = index;
+
+                for (int i = 0; i < vertexList.Count - 1; i++)
+                {
+                    polyVertices.Add(vertexList[i]);
+
+                    polyEdges.Add(new Edge(index, ++index));
+                }
+
+                // add last edge
+                polyVertices.Add(vertexList.Last());
+                polyEdges.Add(new Edge(index, firstIndex));
+                index++;
+            }
+        }
+
         public void ConstructRoom()
         {
             List<ISDLElement> grass = new List<ISDLElement>();
@@ -194,41 +273,13 @@ namespace PSDLExporter
             // now fill the spaces between the grid tiles and the roads
             List<List<Vertex>> polygon = TraverseHoles();
             polygon.Insert(0, GetPerimeterVertexList());
-            List<Vertex> polyVertices = new List<Vertex>();
-            List<Edge> polyEdges = new List<Edge>();
+            List<Vertex> polyVertices;
+            List<Edge> polyEdges;
 
-            // turn into vertex and edge list
-            uint index = 0;
-
-            foreach (List<Vertex> vertexList in polygon)
-            {
-                // skip degenerate cases
-                if (vertexList.Count < 3)
-                {
-                    Debug.Log("Skipping degenerate case with " + vertexList.Count + " vertices.");
-                    continue;
-                }
-
-                vertexList.Reverse();
-
-                uint firstIndex = index;
-
-                for(int i = 0; i < vertexList.Count - 1; i++)
-                {
-                    polyVertices.Add(vertexList[i]);
-
-                    polyEdges.Add(new Edge(index, ++index));
-                }
-
-                // add last edge
-                polyVertices.Add(vertexList.Last());
-                polyEdges.Add(new Edge(index, firstIndex));
-                index++;
-            }
+            PolygonToVertexEdgeList(polygon, out polyVertices, out polyEdges);
 
             PolygonTriangulator triangulator = new PolygonTriangulator(polyVertices, polyEdges);
 
-            triangulator.MakeMonotone();
             triangulator.Triangulate();
 
             List<ISDLElement> fans = triangulator.MakeTriangleFans();

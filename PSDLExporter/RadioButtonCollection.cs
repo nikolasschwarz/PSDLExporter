@@ -24,6 +24,7 @@ namespace PSDLExporter
             cbs[0].readOnly = true;
         }
 
+        // TODO: this would be more efficient if the last checked box were stored
         private void RadioButtonCollection_eventCheckChanged(UIComponent component, bool value)
         {
             if (value)

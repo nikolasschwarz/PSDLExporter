@@ -18,7 +18,7 @@ namespace PSDLExporter
 
         public static List<string> warnings = new List<string>();
 
-        public void RetrieveData(string style = "f")
+        public void RetrieveData(string name, string style = "f")
         {
             NetManager nm = Singleton<NetManager>.instance;
 
@@ -135,14 +135,14 @@ namespace PSDLExporter
             file.Version = 0;
 
             //TODO: filter other illegal characters and generate unique city basename
-            string psdlLocation = @"PSDLExporter\Exports\" + Regex.Replace(Singleton<SimulationManager>.instance.m_metaData.m_CityName, @"\s+", "_")
-                + "_" + Singleton<SimulationManager>.instance.m_metaData.m_WorkshopPublishedFileId.AsUInt64 + ".psdl";           
+            // use map name if city name is not available. This is probably a good idea when exporting from the map editor
+            string psdlLocation = @"PSDLExporter\Exports\" + Regex.Replace(name, @"\s+", "_") + ".psdl";           
 
             if (File.Exists(psdlLocation)) File.Delete(psdlLocation);
             file.SaveAs(psdlLocation);
 
             // debug
-            Debug.Log("There are " + file.Vertices.Count + " vertices and " + file.Rooms.Count + " rooms.");
+            /*Debug.Log("There are " + file.Vertices.Count + " vertices and " + file.Rooms.Count + " rooms.");
 
             StreamWriter writer = new StreamWriter(@"D:\Games\SteamLibrary\steamapps\common\Cities_Skylines\perimeters.svg");
             writer.WriteLine("<svg height=\"210\" width=\"500\">");
@@ -155,7 +155,7 @@ namespace PSDLExporter
 
             writer.WriteLine("</ svg >");
             writer.Flush();
-            writer.Close();
+            writer.Close();*/
 
             // accumulate warnings
             string warningMessage = "WARNINGS:" + Environment.NewLine;

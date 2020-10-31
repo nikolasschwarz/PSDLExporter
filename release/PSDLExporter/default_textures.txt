@@ -1,0 +1,48 @@
+# list of textures that exist in the game. If you want to modify this, make sure to maintain alphabetical order!
+# not implemented yet
+
+# search name, (optional) redirection to a different name
+[Road]
+r1_f
+r1_l
+r1_lo_f
+r1_lo_l
+r2_f
+r2_l
+r2_lo_f
+r2_lo_l
+#r2_nopark_l
+#r2_nopark_lo_l
+r2_oneway_f
+r2_oneway_lo_f
+r3_l
+r3_lo_l
+r4_f
+r4_l
+r4_lo_f
+r4_lo_l
+r4_oneway_f
+r4_oneway_lo_f
+r6_f
+r6_fwy_f, rfwy_f
+r6_fwy_lo_f, rfwy_lo_f
+r6_l
+r6_lo_f
+r6_lo_l
+r8_f
+
+[Sidewalk]
+swalk_f
+swalk_l, swalk_stone_l
+
+[Crosswalk]
+rxwalk_f
+rxwalk_l, rxwalk02_l
+
+[IntersectionSidewalk]
+swalk_inter_f
+swalk_inter_l, swalk_stone02_l
+
+[IntersectionCenter]
+rinter_f
+rinter_l

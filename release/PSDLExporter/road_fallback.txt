@@ -1,0 +1,4 @@
+Oneway=oneway||2*div|2*
+Divided=div|
+Asymmetric=asym|
+Freeway=fwy|div|

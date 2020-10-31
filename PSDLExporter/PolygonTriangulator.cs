@@ -69,8 +69,9 @@ namespace PSDLExporter
                 incoming[e.v1].Add(e);
             }
 
-            // for debugging print all
 
+            // for debugging print all
+            /*
             string dataCodeSnippet = "";
 
             dataCodeSnippet += "Vertex[] vertices = new Vertex[" + vertices.Count() + "];" + Environment.NewLine;
@@ -96,10 +97,10 @@ namespace PSDLExporter
             StreamWriter writer = new StreamWriter(@"D:\Games\SteamLibrary\steamapps\common\Cities_Skylines\codeSnippet.txt");
             writer.Write(dataCodeSnippet);
             writer.Flush();
-            writer.Close();
+            writer.Close();*/
         }
 
-        public void MakeMonotone(/*IEnumerable<Vertex> vertices*/)
+        private void MakeMonotone()
         {
             // use this as priority queue for vertices sorted primarily by z-coordinate and secondarily by their x-coordinate
             SortedDictionary<Vertex, int> vertexQueue = new SortedDictionary<Vertex, int>(new VertexComparer());
@@ -717,6 +718,7 @@ namespace PSDLExporter
 
         public void Triangulate()
         {
+            MakeMonotone();
             List<List<uint>> monotonePolygons = ExtractMonotonePolygons();
 
             foreach (List<uint> polygon in monotonePolygons)
